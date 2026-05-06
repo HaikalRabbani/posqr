@@ -106,13 +106,21 @@ const handleCheckout = async () => {
 
     const response = await api.post('/public/order', payload)
     const paymentUrl = response.data?.data?.redirect_url || response.data?.payment_url
-    const orderId = response.data?.data?.order?.id || response.data?.order?.id
+    
+    // PERBAIKAN: Tangkap order ID dari berbagai kemungkinan struktur JSON Laravel
+    const orderId = response.data?.data?.order?.id || response.data?.order?.id || response.data?.data?.id || response.data?.id
     
     cartStore.clearCart()
     if (paymentMethod.value === 'midtrans' && paymentUrl) {
       window.location.href = paymentUrl 
     } else {
-      router.push(`/status/${orderId}`)
+      // PERBAIKAN: Cegah routing ke '/status/undefined' yang menyebabkan blank screen
+      if (orderId) {
+        router.push(`/status/${orderId}`)
+      } else {
+        alert('Pesanan berhasil dikirim ke dapur!')
+        router.push('/') 
+      }
     }
   } catch (err) {
     alert(err.response?.data?.message || 'Gagal mengirim pesanan.')
@@ -169,8 +177,7 @@ const handleCheckout = async () => {
       <div class="voucher-section" @click="showDiscountModal = true">
         <div class="voucher-left">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M2 9V5a2 2 0 012-2h16a2 2 0 012 2v4a3 3 0 000 6v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4a3 3 0 000-6z"/>
-            <path d="M12 2v20M9 8h6M9 12h6M9 16h6"/>
+            <path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/>
           </svg>
           <span v-if="!activeDiscount">Pilih Promo / Diskon</span>
           <span v-else class="active-promo-name">{{ activeDiscount.name }}</span>
