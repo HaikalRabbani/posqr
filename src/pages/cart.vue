@@ -10,6 +10,7 @@ const cartStore = useCartStore()
 const paymentMethod = ref('cash') 
 const isSubmitting = ref(false)
 const showDiscountModal = ref(false) // Kontrol Modal Diskon
+const nameError = ref(false) // State validasi nama pelanggan
 
 const availableTaxes = ref([])
 const availableDiscounts = ref([])
@@ -65,7 +66,8 @@ const taxBreakdown = computed(() => {
     } else {
       amount = tax.rate
     }
-    return { id: tax.id, name: tax.name, rate: tax.rate, type: tax.type, amount: amount }
+    // Gunakan parseFloat untuk membuang nol berlebih di display
+    return { id: tax.id, name: tax.name, rate: parseFloat(tax.rate), type: tax.type, amount: amount }
   })
 })
 
@@ -75,7 +77,13 @@ const grandTotal = computed(() => amountAfterDiscount.value + totalTaxAmount.val
 const formatRupiah = (angka) => new Intl.NumberFormat('id-ID').format(angka)
 
 const handleCheckout = async () => {
-  if (!cartStore.customerName) return alert('Mohon masukkan nama kamu.')
+  // Cek apakah nama diisi
+  if (!cartStore.customerName) {
+    nameError.value = true
+    return
+  }
+  nameError.value = false
+
   if (!cartStore.tableInfo) return alert('Data meja tidak ditemukan. Silakan scan ulang.')
 
   isSubmitting.value = true
@@ -146,13 +154,24 @@ const handleCheckout = async () => {
 
     <div class="checkout-form">
       <div class="form-group">
-        <label>Nama Pelanggan</label>
-        <input v-model="cartStore.customerName" type="text" placeholder="Siapa nama kamu?" class="input-minimal" />
+        <label :class="{ 'label-error': nameError }">Nama Pelanggan *</label>
+        <input 
+          v-model="cartStore.customerName" 
+          type="text" 
+          placeholder="Siapa nama kamu?" 
+          class="input-minimal"
+          :class="{ 'input-error': nameError }"
+          @input="nameError = false"
+        />
+        <span v-if="nameError" class="error-text">Nama pelanggan wajib diisi sebelum memesan.</span>
       </div>
 
       <div class="voucher-section" @click="showDiscountModal = true">
         <div class="voucher-left">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-1.761 1.761a2 2 0 000 2.828L15 11.239m0-6.239V3a1 1 0 00-1-1H4a1 1 0 00-1 1v18a1 1 0 001 1h16a1 1 0 001-1v-8.761a1 1 0 00-.293-.707l-4.707-4.707a1 1 0 00-.707-.293h-1.239z"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M2 9V5a2 2 0 012-2h16a2 2 0 012 2v4a3 3 0 000 6v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4a3 3 0 000-6z"/>
+            <path d="M12 2v20M9 8h6M9 12h6M9 16h6"/>
+          </svg>
           <span v-if="!activeDiscount">Pilih Promo / Diskon</span>
           <span v-else class="active-promo-name">{{ activeDiscount.name }}</span>
         </div>
@@ -244,6 +263,11 @@ const handleCheckout = async () => {
 .form-group label { display: block; font-size: 13px; font-weight: 600; color: #5A7A9A; margin-bottom: 8px; }
 .input-minimal { width: 100%; border: none; border-bottom: 2px solid #D4E4F4; padding: 8px 0; font-size: 16px; outline: none; transition: 0.3s; }
 .input-minimal:focus { border-color: #2E7DD6; }
+
+/* Error Styling */
+.label-error { color: #DC2626 !important; }
+.input-error { border-bottom-color: #DC2626 !important; }
+.error-text { color: #DC2626; font-size: 11px; margin-top: 4px; display: block; font-weight: 500; }
 
 /* Voucher Section Style Shopee */
 .voucher-section { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: #FAFCFF; border: 1px solid #D4E4F4; border-radius: 10px; margin-bottom: 24px; cursor: pointer; }
