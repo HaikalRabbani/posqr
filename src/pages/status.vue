@@ -14,7 +14,6 @@ const fetchOrderStatus = async () => {
   fetchError.value = false
   try {
     const response = await api.get(`/public/order/${route.params.id}`)
-    // Ambil data dari response.data.data (standard resource Laravel)
     order.value = response.data.data || response.data
   } catch (error) {
     console.error('Gagal mengambil status pesanan:', error)
@@ -24,10 +23,9 @@ const fetchOrderStatus = async () => {
   }
 }
 
-const formatRupiah = (angka) => new Intl.NumberFormat('id-ID').format(angka)
+const formatRupiah = (angka) => new Intl.NumberFormat('id-ID').format(angka || 0)
 
-// Fungsi untuk membersihkan angka desimal pada persentase pajak (misal 11.0000 -> 11)
-const cleanRate = (rate) => parseFloat(rate)
+const cleanRate = (rate) => parseFloat(rate || 0)
 
 onMounted(() => {
   fetchOrderStatus()
@@ -56,26 +54,26 @@ onMounted(() => {
     <div v-else class="order-container">
       <div class="status-card">
         <div class="card-header">
-          <p class="invoice-num">{{ order.invoice_number || 'PROSES GENERATE' }}</p>
-          <span class="status-badge" :class="order.status.toLowerCase()">
-            {{ order.status.toUpperCase() }}
+          <p class="invoice-num">{{ order?.invoice_number || 'PROSES GENERATE' }}</p>
+          <span class="status-badge" :class="order?.status?.toLowerCase() || 'pending'">
+            {{ order?.status?.toUpperCase() || 'PENDING' }}
           </span>
         </div>
         
         <div class="customer-info">
           <div class="info-row">
             <span class="label">Atas Nama</span>
-            <span class="value">{{ order.customer_name }}</span>
+            <span class="value">{{ order?.customer_name }}</span>
           </div>
           <div class="info-row">
             <span class="label">Metode Bayar</span>
-            <span class="value text-capitalize">{{ order.payment_method === 'midtrans' ? 'Online (QRIS)' : 'Bayar di Kasir' }}</span>
+            <span class="value text-capitalize">{{ order?.payment_method === 'midtrans' ? 'Online (QRIS)' : 'Bayar di Kasir' }}</span>
           </div>
         </div>
 
         <div class="items-section">
           <h4>Rincian Menu</h4>
-          <div v-for="item in order.items" :key="item.id" class="order-item">
+          <div v-for="item in order?.items" :key="item.id" class="order-item">
             <div class="item-desc">
               <span class="item-qty">{{ item.qty }}x</span>
               <div class="item-name-group">
@@ -90,31 +88,31 @@ onMounted(() => {
         <div class="billing-section">
           <div class="bill-row">
             <span>Subtotal</span>
-            <span>Rp {{ formatRupiah(order.total_price - (order.tax_amount || 0) + (order.discount_amount || 0)) }}</span>
+            <span>Rp {{ formatRupiah((order?.total_price || 0) - (order?.tax_amount || 0) + (order?.discount_amount || 0)) }}</span>
           </div>
           
-          <div v-if="order.discount_amount > 0" class="bill-row discount">
+          <div v-if="order?.discount_amount > 0" class="bill-row discount">
             <span>Diskon</span>
             <span>- Rp {{ formatRupiah(order.discount_amount) }}</span>
           </div>
 
-          <div v-for="(tax, index) in order.tax_breakdown" :key="index" class="bill-row">
+          <div v-for="(tax, index) in order?.tax_breakdown" :key="index" class="bill-row">
             <span>{{ tax.name }} ({{ cleanRate(tax.rate) }}{{ tax.type === 'percentage' ? '%' : '' }})</span>
             <span>Rp {{ formatRupiah(tax.amount) }}</span>
           </div>
 
           <div class="bill-row total">
             <span>Total Bayar</span>
-            <span class="grand-total">Rp {{ formatRupiah(order.total_price) }}</span>
+            <span class="grand-total">Rp {{ formatRupiah(order?.total_price) }}</span>
           </div>
         </div>
       </div>
 
       <div class="footer-note">
-        <p v-if="order.status === 'pending' && order.payment_method === 'cash'">
+        <p v-if="order?.status === 'pending' && order?.payment_method === 'cash'">
           Silakan tunjukkan layar ini ke kasir untuk melakukan pembayaran.
         </p>
-        <p v-else-if="order.status === 'pending' && order.payment_method === 'midtrans'">
+        <p v-else-if="order?.status === 'pending' && order?.payment_method === 'midtrans'">
           Menunggu verifikasi pembayaran online...
         </p>
         <p v-else>
