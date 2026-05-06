@@ -55,19 +55,32 @@ const selectDiscount = (id) => {
   showDiscountModal.value = false
 }
 
-// --- LOGIKA MULTI-PAJAK (BREAKDOWN) ---
+// --- LOGIKA MULTI-PAJAK (METODE BERTINGKAT / SEKUENSIAL) ---
 const amountAfterDiscount = computed(() => Math.max(0, cartStore.totalPrice - discountAmount.value))
 
 const taxBreakdown = computed(() => {
+  // Nilai dasar awal adalah subtotal setelah diskon
+  let currentBaseAmount = amountAfterDiscount.value; 
+
   return availableTaxes.value.map(tax => {
     let amount = 0
     if (tax.type === 'percentage') {
-      amount = Math.round(amountAfterDiscount.value * (tax.rate / 100))
+      // Hitung persen dari nilai dasar saat ini (yang sudah ditambah pajak sebelumnya)
+      amount = Math.round(currentBaseAmount * (tax.rate / 100))
     } else {
       amount = tax.rate
     }
-    // Gunakan parseFloat untuk membuang nol berlebih di display
-    return { id: tax.id, name: tax.name, rate: parseFloat(tax.rate), type: tax.type, amount: amount }
+    
+    // Tambahkan nominal pajak ini ke nilai dasar untuk dihitung oleh pajak berikutnya
+    currentBaseAmount += amount; 
+
+    return { 
+      id: tax.id, 
+      name: tax.name, 
+      rate: parseFloat(tax.rate), 
+      type: tax.type, 
+      amount: amount 
+    }
   })
 })
 
