@@ -43,15 +43,25 @@ const handleCheckout = async () => {
 
     const response = await api.post('/public/order', payload)
     
+    // PERBAIKAN: Tangkap redirect_url dan order ID dengan aman sesuai struktur JSON dari Laravel
+    const paymentUrl = response.data?.data?.redirect_url || response.data?.payment_url;
+    const orderId = response.data?.data?.order?.id || response.data?.order?.id;
+    
     // Jika API merespons dengan URL Pembayaran Midtrans (Online)
-    if (paymentMethod.value === 'midtrans' && response.data.payment_url) {
+    if (paymentMethod.value === 'midtrans' && paymentUrl) {
       cartStore.clearCart() // Kosongkan keranjang sebelum pindah halaman
-      window.location.href = response.data.payment_url // Lempar pelanggan ke Midtrans
+      window.location.href = paymentUrl // Lempar pelanggan ke Midtrans
     } else {
       // Jika pelanggan memilih bayar di kasir (Cash)
-      alert('Pesanan berhasil dikirim ke dapur! Silakan lakukan pembayaran di kasir.')
+      alert('Pesanan berhasil dikirim ke dapur!')
       cartStore.clearCart()
-      router.push(`/menu/${cartStore.tableToken}`)
+      
+      // PERBAIKAN: Arahkan pelanggan ke halaman pantauan status
+      if (orderId) {
+        router.push(`/status/${orderId}`)
+      } else {
+        router.push(`/menu/${cartStore.tableToken}`)
+      }
     }
   } catch (err) {
     console.error('Checkout error:', err)
@@ -62,7 +72,6 @@ const handleCheckout = async () => {
     isSubmitting.value = false
   }
 }
-
 </script>
 
 <template>
