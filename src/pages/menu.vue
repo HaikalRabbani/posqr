@@ -47,7 +47,7 @@ const onImageError = (event) => {
   event.target.src = 'https://placehold.co/400x400/EBF3FB/5A7A9A?text=Image+Error'
 }
 
-// --- FETCH BEST SELLER ---
+// --- FETCH BEST SELLER DARI PUBLIC API ---
 const fetchBestSellers = async (outletId) => {
   try {
     const response = await api.get('/public/top-products', {
@@ -188,35 +188,24 @@ onMounted(() => {
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Poppins:wght@400;500;600;700&display=swap');
 
-/* --- LAYOUT UTAMA --- */
 .page-wrapper { font-family: 'Poppins', sans-serif; background-color: #FFFFFF; min-height: 100vh; padding: 16px; }
 .bottom-spacer { height: 120px; }
 
-/* --- HEADER --- */
 .menu-header { margin-bottom: 20px; }
 .outlet-name { font-size: 22px; font-weight: 700; color: #1A2332; margin: 0; }
 .table-label { font-size: 14px; color: #5A7A9A; font-weight: 500; margin-top: 2px; }
 
-/* --- KATEGORI --- */
 .category-container { margin: 0 -16px 20px -16px; }
 .category-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 0 16px 8px 16px; scrollbar-width: none; }
 .category-scroll::-webkit-scrollbar { display: none; }
 
 .category-pill {
-  padding: 8px 18px;
-  border-radius: 20px;
-  border: 1px solid #D4E4F4;
-  background: #FFFFFF;
-  color: #5A7A9A;
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  padding: 8px 18px; border-radius: 20px; border: 1px solid #D4E4F4;
+  background: #FFFFFF; color: #5A7A9A; font-size: 13px; font-weight: 500;
+  white-space: nowrap; cursor: pointer; transition: all 0.2s ease;
 }
 .category-pill.active { background: #2E7DD6; color: #FFFFFF; border-color: #2E7DD6; }
 
-/* --- GRID PRODUK --- */
 .product-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -228,94 +217,66 @@ onMounted(() => {
 }
 
 .product-card {
-  background: #FFFFFF;
-  border: 1px solid #EAE6DF;
-  border-radius: 16px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  transition: transform 0.2s ease;
+  background: #FFFFFF; border: 1px solid #EAE6DF; border-radius: 16px;
+  overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s ease;
 }
 .product-card:active { transform: scale(0.98); }
 
+/* --- EFEK STOK HABIS (GRAYSCALE) --- */
 .product-card.out-of-stock { filter: grayscale(100%); opacity: 0.8; pointer-events: none; border-color: #D1D5DB; }
 
-/* --- GAMBAR --- */
 .product-image-wrap { position: relative; width: 100%; aspect-ratio: 1/1; background-color: #EBF3FB; }
 .product-image-wrap img { width: 100%; height: 100%; object-fit: cover; }
 
 .badge-bestseller {
-  position: absolute; top: 8px; left: 8px;
-  background: #F59E0B; color: #FFFFFF;
-  padding: 3px 8px; font-size: 10px; font-weight: 700;
-  border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  position: absolute; top: 8px; left: 8px; background: #F59E0B; color: #FFFFFF;
+  padding: 3px 8px; font-size: 10px; font-weight: 700; border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
 
 .overlay-soldout {
-  position: absolute; inset: 0;
-  background: rgba(255, 255, 255, 0.4);
+  position: absolute; inset: 0; background: rgba(255, 255, 255, 0.4);
   display: flex; align-items: center; justify-content: center;
 }
 .overlay-soldout span {
-  background: #5A7A9A; color: white;
-  padding: 4px 12px; border-radius: 6px;
+  background: #5A7A9A; color: white; padding: 4px 12px; border-radius: 6px;
   font-weight: 700; font-size: 12px;
 }
 
-/* --- INFO PRODUK --- */
 .product-info { padding: 12px; display: flex; flex-direction: column; flex-grow: 1; }
 .product-title { font-size: 13px; font-weight: 600; color: #1A2332; margin: 0 0 4px 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .product-desc { font-size: 10px; color: #7A7A7A; margin-bottom: 12px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 .product-footer { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
-.text-price { font-weight: 700; color: #2E7DD6; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+.text-price { font-weight: 700; color: #2E7DD6; font-size: 13px; font-family: 'JetBrains Mono', monospace; } /* WARNA BIRU HARGA */
 
 .btn-add {
-  width: 100%; background: #2E7DD6; color: #FFFFFF;
-  border: none; padding: 8px; border-radius: 10px;
-  font-size: 12px; font-weight: 600; cursor: pointer;
-  transition: 0.2s;
+  width: 100%; background: #2E7DD6; color: #FFFFFF; border: none; padding: 8px;
+  border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s;
 }
 .btn-add:disabled { background: #D1D5DB; color: #9CA3AF; }
 
-/* --- FLOATING CART --- */
 .floating-cart {
   position: fixed; bottom: 20px; left: 16px; right: 16px;
-  max-width: 450px; margin: 0 auto;
-  background: #1A2332; color: #FFFFFF;
-  padding: 16px 20px; border-radius: 18px;
-  display: flex; justify-content: space-between; align-items: center;
-  box-shadow: 0 10px 25px rgba(26, 35, 50, 0.3);
-  z-index: 100;
+  max-width: 450px; margin: 0 auto; background: #1A2332; color: #FFFFFF;
+  padding: 16px 20px; border-radius: 18px; display: flex;
+  justify-content: space-between; align-items: center;
+  box-shadow: 0 10px 25px rgba(26, 35, 50, 0.3); z-index: 100;
   animation: slideUp 0.3s ease forwards;
 }
 
-@keyframes slideUp {
-  from { bottom: -100px; opacity: 0; }
-  to { bottom: 24px; opacity: 1; }
-}
+@keyframes slideUp { from { bottom: -100px; opacity: 0; } to { bottom: 24px; opacity: 1; } }
 
 .cart-details { display: flex; flex-direction: column; }
 .cart-qty { font-size: 11px; color: #8AAFCC; font-weight: 500; }
 .cart-price { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 16px; }
 
 .btn-go-to-cart {
-  background: #2E7DD6; color: #FFFFFF;
-  border: none; padding: 10px 18px; border-radius: 10px;
-  font-weight: 700; font-size: 13px; cursor: pointer;
+  background: #2E7DD6; color: #FFFFFF; border: none; padding: 10px 18px;
+  border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer;
 }
 
-/* --- STATE UI (PERBAIKAN RESPONSIF) --- */
-.state-center { 
-  display: flex; 
-  flex-direction: column; 
-  align-items: center; 
-  justify-content: center; 
-  min-height: 60vh; /* Kunci agar selalu di tengah vertikal */
-  padding: 20px; 
-  text-align: center; 
-  color: #5A7A9A; 
-}
+.state-center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; padding: 20px; text-align: center; color: #5A7A9A; }
 .loader { border: 3px solid #EBF3FB; border-top: 3px solid #2E7DD6; border-radius: 50%; width: 34px; height: 34px; animation: spin 1s linear infinite; margin-bottom: 16px; }
 @keyframes spin { 100% { transform: rotate(360deg); } }
 .error-box { background: #fff1f0; border: 1px solid #ffa39e; border-radius: 12px; padding: 20px; color: #cf1322; width: 100%; }
