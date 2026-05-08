@@ -20,25 +20,30 @@ export const useCartStore = defineStore('cart', {
       let eligibleTotal = 0;
       let eligibleQty = 0;
 
-      // FIX DISKON: Pastikan tipe data sama (diubah jadi Number semua)
       const discountScope = discount.scope || 'global';
+      const discountValue = Number(discount.value) || 0;
 
-      if (discountScope === 'products' && Array.isArray(discount.product_ids)) {
-        const allowedIds = discount.product_ids.map(Number);
+      if (discountScope === 'products') {
+        // Handle format API (product_ids array mentah atau relasi products)
+        let allowedIds = [];
+        if (Array.isArray(discount.product_ids)) allowedIds = discount.product_ids.map(Number);
+        else if (Array.isArray(discount.products)) allowedIds = discount.products.map(p => Number(p.id));
+
         const inScope = state.items.filter(item => allowedIds.includes(Number(item.product_id)));
-        
         eligibleTotal = inScope.reduce((sum, item) => sum + (item.price * item.qty), 0);
         eligibleQty = inScope.reduce((sum, item) => sum + item.qty, 0);
 
-      } else if (discountScope === 'categories' && Array.isArray(discount.category_ids)) {
-        const allowedCats = discount.category_ids.map(Number);
+      } else if (discountScope === 'categories') {
+        let allowedCats = [];
+        if (Array.isArray(discount.category_ids)) allowedCats = discount.category_ids.map(Number);
+        else if (Array.isArray(discount.categories)) allowedCats = discount.categories.map(c => Number(c.id));
+
         const inScope = state.items.filter(item => allowedCats.includes(Number(item.category_id)));
-        
         eligibleTotal = inScope.reduce((sum, item) => sum + (item.price * item.qty), 0);
         eligibleQty = inScope.reduce((sum, item) => sum + item.qty, 0);
 
       } else {
-        // Global scope (Semua item kena diskon)
+        // Global scope
         eligibleTotal = this.totalPrice; 
         eligibleQty = this.totalItems;   
       }
@@ -46,20 +51,20 @@ export const useCartStore = defineStore('cart', {
       if (eligibleTotal <= 0) return 0;
 
       let finalDiscount = 0;
-      const discountValue = Number(discount.value) || 0;
-
-      // 2. Kalkulasi nilai uang diskon
+      
       if (discount.type === 'percentage') {
         finalDiscount = eligibleTotal * (discountValue / 100);
         const maxVal = Number(discount.max_discount) || 0;
-        if (maxVal > 0 && finalDiscount > maxVal) {
-          finalDiscount = maxVal;
-        }
+        if (maxVal > 0 && finalDiscount > maxVal) finalDiscount = maxVal;
       } else {
-        // FIX: Diskon Nominal Dikalikan jumlah kuantitas (QTY) barang yang memenuhi syarat
-        finalDiscount = discountValue * eligibleQty;
-        
-        // Mencegah diskon membuat total tagihan jadi minus
+        // Diskon Nominal
+        if (discountScope === 'global') {
+             // Jika diskon global, hitungan tidak dikali QTY (sesuai backend)
+             finalDiscount = discountValue;
+        } else {
+             // Jika diskon per produk/kategori, WAJIB dikali QTY
+             finalDiscount = discountValue * eligibleQty;
+        }
         finalDiscount = Math.min(finalDiscount, eligibleTotal);
       }
 
@@ -85,15 +90,15 @@ export const useCartStore = defineStore('cart', {
     },
 
     addItem(product) {
-      // FIX BARIS GANDA: Deteksi ID apakah datang dari halaman Menu (id) atau halaman Cart (product_id)
-      const productId = product.id || product.product_id;
-      const price = product.price || product.pivot?.price || 0;
-      const categoryId = product.category_id; 
+      // FIX BARIS GANDA: Konversi semua ID ke tipe Number yang mutlak!
+      const productId = Number(product.id || product.product_id);
+      const price = Number(product.price || product.pivot?.price || 0);
+      const categoryId = Number(product.category_id || 0); 
 
-      const existingItem = this.items.find(item => item.product_id === productId);
+      const existingItem = this.items.find(item => Number(item.product_id) === productId);
       
       if (existingItem) {
-        existingItem.qty++; // Kalau barangnya udah ada, tambahin QTY aja
+        existingItem.qty++; // Sekarang pasti ketemu dan dijumlahkan
       } else {
         this.items.push({
           product_id: productId,
@@ -105,7 +110,7 @@ export const useCartStore = defineStore('cart', {
       }
     },
     removeItem(productId) {
-      const index = this.items.findIndex(item => item.product_id === productId)
+      const index = this.items.findIndex(item => Number(item.product_id) === Number(productId))
       if (index !== -1) {
         if (this.items[index].qty > 1) {
           this.items[index].qty--
