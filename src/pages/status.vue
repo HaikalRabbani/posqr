@@ -1,8 +1,11 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+// 1. Tambahkan onUnmounted untuk membersihkan memori websocket
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api.js'
-import html2canvas from 'html2canvas' // Pastikan sudah install library ini
+// 2. Import instansi Echo yang sudah kita buat sebelumnya
+import echo from '../services/echo.js'
+import html2canvas from 'html2canvas'
 
 const route = useRoute()
 const router = useRouter()
@@ -10,13 +13,14 @@ const order = ref(null)
 const isLoading = ref(true)
 const fetchError = ref(false)
 
-// State untuk fitur download gambar
 const receiptRef = ref(null)
 const isDownloading = ref(false)
 
 const fetchOrderStatus = async () => {
-  isLoading.value = true
+  // Hanya tampilkan loading penuh jika data order belum ada sama sekali
+  if (!order.value) isLoading.value = true
   fetchError.value = false
+  
   try {
     const response = await api.get(`/public/order/${route.params.id}`)
     order.value = response.data.data || response.data
@@ -31,23 +35,19 @@ const fetchOrderStatus = async () => {
 const formatRupiah = (angka) => new Intl.NumberFormat('id-ID').format(angka || 0)
 const cleanRate = (rate) => parseFloat(rate || 0)
 
-// FITUR SIMPAN GAMBAR (Menggantikan Print)
 const handleDownloadImage = async () => {
   if (!receiptRef.value) return
   
   isDownloading.value = true
   try {
-    // Tangkap elemen struk
     const canvas = await html2canvas(receiptRef.value, {
-      scale: 2, // Skala 2x agar gambar tidak pecah
-      backgroundColor: '#EBF3FB', // Samakan dengan warna latar status-card
+      scale: 2, 
+      backgroundColor: '#EBF3FB', 
       useCORS: true
     })
     
-    // Ubah ke format PNG
     const image = canvas.toDataURL("image/png")
     
-    // Proses download otomatis
     const link = document.createElement('a')
     link.download = `Struk-${order.value?.invoice_number || 'Pesanan'}.png`
     link.href = image
@@ -61,7 +61,28 @@ const handleDownloadImage = async () => {
 }
 
 onMounted(() => {
+  // Ambil data pertama kali saat halaman dibuka
   fetchOrderStatus()
+
+  // 3. MULAI MENDENGARKAN REALTIME REVERB
+  const orderId = route.params.id
+  echo.channel(`customer-order.${orderId}`)
+    .listen('PaymentPaid', (e) => {
+      console.log('Sinyal Realtime: Pesanan Lunas!', e)
+      // Tarik data terbaru tanpa merefresh halaman
+      fetchOrderStatus()
+    })
+    .listen('OrderUpdated', (e) => {
+      console.log('Sinyal Realtime: Pesanan Diubah Kasir!', e)
+      // Tarik data terbaru jika ada menu/pajak/diskon yang diubah
+      fetchOrderStatus()
+    })
+})
+
+// 4. PUTUSKAN KONEKSI SAAT PELANGGAN PINDAH HALAMAN
+onUnmounted(() => {
+  const orderId = route.params.id
+  echo.leaveChannel(`orders.${orderId}`)
 })
 </script>
 
@@ -153,7 +174,7 @@ onMounted(() => {
       </div>
 
       <div class="action-buttons">
-        <button class="btn-print" :disabled="isDownloading" @click="handleDownloadImage">
+        <button v-if="order?.status === 'paid'" class="btn-print" :disabled="isDownloading" @click="handleDownloadImage">
           <svg v-if="!isDownloading" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
           </svg>
@@ -168,8 +189,11 @@ onMounted(() => {
         <p v-else-if="order?.status === 'pending' && order?.payment_method === 'midtrans'">
           Menunggu verifikasi pembayaran online...
         </p>
-        <p v-else>
+        <p v-else-if="order?.status === 'paid'">
           Pesanan kamu sedang kami siapkan. Terima kasih!
+        </p>
+        <p v-else-if="order?.status === 'cancelled'">
+          Pesanan telah dibatalkan.
         </p>
       </div>
     </div>
