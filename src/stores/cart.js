@@ -5,14 +5,14 @@ export const useCartStore = defineStore('cart', {
     tableToken: null,
     tableInfo: null,
     items: [],
-    customerName: '', // Simpan nama di sini
-    appliedDiscount: null, // State baru untuk menyimpan data diskon/promo
+    customerName: '', 
+    appliedDiscount: null, 
   }),
   getters: {
     totalItems: (state) => state.items.reduce((total, item) => total + item.qty, 0),
     totalPrice: (state) => state.items.reduce((total, item) => total + (item.price * item.qty), 0),
 
-    // --- GETTER BARU: Hitung Diskon Bertingkat (Stacking QTY) ---
+    // --- GETTER: Hitung Diskon Bertingkat (Stacking QTY) ---
     discountAmount(state) {
       if (!state.appliedDiscount) return 0;
 
@@ -20,14 +20,20 @@ export const useCartStore = defineStore('cart', {
       let eligibleTotal = 0;
       let eligibleQty = 0;
 
-      // 1. Tentukan barang apa saja yang kena diskon (Scope)
-      if (discount.scope === 'products' && Array.isArray(discount.product_ids)) {
-        const inScope = state.items.filter(item => discount.product_ids.includes(item.product_id));
+      // FIX DISKON: Pastikan tipe data sama (diubah jadi Number semua)
+      const discountScope = discount.scope || 'global';
+
+      if (discountScope === 'products' && Array.isArray(discount.product_ids)) {
+        const allowedIds = discount.product_ids.map(Number);
+        const inScope = state.items.filter(item => allowedIds.includes(Number(item.product_id)));
+        
         eligibleTotal = inScope.reduce((sum, item) => sum + (item.price * item.qty), 0);
         eligibleQty = inScope.reduce((sum, item) => sum + item.qty, 0);
 
-      } else if (discount.scope === 'categories' && Array.isArray(discount.category_ids)) {
-        const inScope = state.items.filter(item => discount.category_ids.includes(item.category_id));
+      } else if (discountScope === 'categories' && Array.isArray(discount.category_ids)) {
+        const allowedCats = discount.category_ids.map(Number);
+        const inScope = state.items.filter(item => allowedCats.includes(Number(item.category_id)));
+        
         eligibleTotal = inScope.reduce((sum, item) => sum + (item.price * item.qty), 0);
         eligibleQty = inScope.reduce((sum, item) => sum + item.qty, 0);
 
@@ -40,16 +46,18 @@ export const useCartStore = defineStore('cart', {
       if (eligibleTotal <= 0) return 0;
 
       let finalDiscount = 0;
+      const discountValue = Number(discount.value) || 0;
 
       // 2. Kalkulasi nilai uang diskon
       if (discount.type === 'percentage') {
-        finalDiscount = eligibleTotal * (discount.value / 100);
-        if (discount.max_discount > 0 && finalDiscount > discount.max_discount) {
-          finalDiscount = discount.max_discount;
+        finalDiscount = eligibleTotal * (discountValue / 100);
+        const maxVal = Number(discount.max_discount) || 0;
+        if (maxVal > 0 && finalDiscount > maxVal) {
+          finalDiscount = maxVal;
         }
       } else {
-        // Diskon Nominal: Dikalikan jumlah kuantitas (QTY) barang yang dibeli
-        finalDiscount = discount.value * eligibleQty;
+        // FIX: Diskon Nominal Dikalikan jumlah kuantitas (QTY) barang yang memenuhi syarat
+        finalDiscount = discountValue * eligibleQty;
         
         // Mencegah diskon membuat total tagihan jadi minus
         finalDiscount = Math.min(finalDiscount, eligibleTotal);
@@ -58,7 +66,7 @@ export const useCartStore = defineStore('cart', {
       return Math.round(finalDiscount);
     },
 
-    // --- GETTER BARU: Grand Total (Subtotal dikurangi Diskon) ---
+    // --- GETTER: Grand Total ---
     grandTotal() {
       return Math.max(0, this.totalPrice - this.discountAmount);
     }
@@ -69,7 +77,6 @@ export const useCartStore = defineStore('cart', {
       this.tableInfo = info
     },
 
-    // --- ACTION BARU: Pasang / Copot Diskon ---
     applyDiscount(discountData) {
       this.appliedDiscount = discountData
     },
@@ -78,16 +85,21 @@ export const useCartStore = defineStore('cart', {
     },
 
     addItem(product) {
-      const price = product.price || product.pivot?.price || 0
-      const existingItem = this.items.find(item => item.product_id === product.id)
+      // FIX BARIS GANDA: Deteksi ID apakah datang dari halaman Menu (id) atau halaman Cart (product_id)
+      const productId = product.id || product.product_id;
+      const price = product.price || product.pivot?.price || 0;
+      const categoryId = product.category_id; 
+
+      const existingItem = this.items.find(item => item.product_id === productId);
+      
       if (existingItem) {
-        existingItem.qty++
+        existingItem.qty++; // Kalau barangnya udah ada, tambahin QTY aja
       } else {
         this.items.push({
-          product_id: product.id,
+          product_id: productId,
           name: product.name,
           price: price,
-          category_id: product.category_id, // PENTING: Wajib dibawa untuk validasi diskon kategori
+          category_id: categoryId, 
           qty: 1
         })
       }
@@ -105,7 +117,7 @@ export const useCartStore = defineStore('cart', {
     clearCart() {
       this.items = []
       this.customerName = ''
-      this.appliedDiscount = null // Pastikan diskon ke-reset saat keranjang kosong
+      this.appliedDiscount = null 
     }
   }
 })
