@@ -67,12 +67,12 @@ onMounted(() => {
   // 3. MULAI MENDENGARKAN REALTIME REVERB
   const orderId = route.params.id
   echo.channel(`customer-order.${orderId}`)
-    .listen('PaymentPaid', (e) => {
+    .listen('.PaymentPaid', (e) => {
       console.log('Sinyal Realtime: Pesanan Lunas!', e)
       // Tarik data terbaru tanpa merefresh halaman
       fetchOrderStatus()
     })
-    .listen('OrderUpdated', (e) => {
+    .listen('.OrderUpdated', (e) => {
       console.log('Sinyal Realtime: Pesanan Diubah Kasir!', e)
       // Tarik data terbaru jika ada menu/pajak/diskon yang diubah
       fetchOrderStatus()
