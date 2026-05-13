@@ -61,20 +61,18 @@ const handleDownloadImage = async () => {
 }
 
 onMounted(() => {
-  // Ambil data pertama kali saat halaman dibuka
   fetchOrderStatus()
 
-  // 3. MULAI MENDENGARKAN REALTIME REVERB
   const orderId = route.params.id
   echo.channel(`customer-order.${orderId}`)
+    // Sesuaikan ini jika PaymentPaid.php juga pakai broadcastAs()
     .listen('.PaymentPaid', (e) => {
       console.log('Sinyal Realtime: Pesanan Lunas!', e)
-      // Tarik data terbaru tanpa merefresh halaman
       fetchOrderStatus()
     })
-    .listen('.OrderUpdated', (e) => {
-      console.log('Sinyal Realtime: Pesanan Diubah Kasir!', e)
-      // Tarik data terbaru jika ada menu/pajak/diskon yang diubah
+    // UBAH INI: Sesuaikan dengan string di return broadcastAs() backend
+    .listen('.order.updated', (e) => { 
+      console.log('Sinyal Realtime: Pesanan Diubah/Lunas!', e)
       fetchOrderStatus()
     })
 })
