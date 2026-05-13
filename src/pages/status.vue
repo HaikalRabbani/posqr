@@ -16,6 +16,17 @@ const fetchError = ref(false)
 const receiptRef = ref(null)
 const isDownloading = ref(false)
 
+// --- TAMBAHAN: Variabel penampung untuk timer interval auto-refresh ---
+let pollingInterval = null
+
+// --- TAMBAHAN: Fungsi untuk mematikan interval ---
+const stopPolling = () => {
+  if (pollingInterval) {
+    clearInterval(pollingInterval)
+    pollingInterval = null
+  }
+}
+
 const fetchOrderStatus = async () => {
   // Hanya tampilkan loading penuh jika data order belum ada sama sekali
   if (!order.value) isLoading.value = true
@@ -24,6 +35,11 @@ const fetchOrderStatus = async () => {
   try {
     const response = await api.get(`/public/order/${route.params.id}`)
     order.value = response.data.data || response.data
+
+    // --- TAMBAHAN: Hentikan auto-refresh jika status sudah lunas/batal ---
+    if (order.value?.status === 'paid' || order.value?.status === 'cancelled') {
+      stopPolling()
+    }
   } catch (error) {
     console.error('Gagal mengambil status pesanan:', error)
     fetchError.value = true
@@ -61,18 +77,23 @@ const handleDownloadImage = async () => {
 }
 
 onMounted(() => {
+  // Ambil data pertama kali saat halaman dibuka
   fetchOrderStatus()
 
+  // --- TAMBAHAN: Mulai auto-refresh setiap 5 detik sebagai BACKUP realtime ---
+  pollingInterval = setInterval(() => {
+    fetchOrderStatus()
+  }, 5000)
+
+  // 3. MULAI MENDENGARKAN REALTIME REVERB (TETAP DIPERTAHANKAN)
   const orderId = route.params.id
   echo.channel(`customer-order.${orderId}`)
-    // Sesuaikan ini jika PaymentPaid.php juga pakai broadcastAs()
     .listen('.PaymentPaid', (e) => {
       console.log('Sinyal Realtime: Pesanan Lunas!', e)
       fetchOrderStatus()
     })
-    // UBAH INI: Sesuaikan dengan string di return broadcastAs() backend
-    .listen('.order.updated', (e) => { 
-      console.log('Sinyal Realtime: Pesanan Diubah/Lunas!', e)
+    .listen('.OrderUpdated', (e) => {
+      console.log('Sinyal Realtime: Pesanan Diubah Kasir!', e)
       fetchOrderStatus()
     })
 })
@@ -80,7 +101,12 @@ onMounted(() => {
 // 4. PUTUSKAN KONEKSI SAAT PELANGGAN PINDAH HALAMAN
 onUnmounted(() => {
   const orderId = route.params.id
-  echo.leaveChannel(`orders.${orderId}`)
+  
+  // (Perbaikan kecil: samakan nama channel leave dengan yang di-listen agar benar-benar terputus)
+  echo.leaveChannel(`customer-order.${orderId}`)
+  
+  // --- TAMBAHAN: Pastikan interval auto-refresh dimatikan ---
+  stopPolling()
 })
 </script>
 
