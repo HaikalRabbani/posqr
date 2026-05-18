@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api.js'
 import { useCartStore } from '../stores/cart.js'
@@ -13,7 +13,10 @@ const tableInfo = ref(null)
 const loading = ref(true)
 const error = ref(null)
 
-const activeCategory = ref('ALL')
+const activeCategory = ref(null)
+const sectionRefs = ref({})
+const categoryNavRef = ref(null)
+let isClickScrolling = false
 
 const categories = computed(() => {
   const cats = []
@@ -27,9 +30,15 @@ const categories = computed(() => {
   return cats
 })
 
-const filteredProducts = computed(() => {
-  if (activeCategory.value === 'ALL') return products.value
-  return products.value.filter(p => p.category_id === activeCategory.value)
+// Mengelompokkan produk berdasarkan kategori untuk layout list vertical
+const groupedProducts = computed(() => {
+  return categories.value.map(cat => {
+    return {
+      id: cat.id,
+      name: cat.name,
+      items: products.value.filter(p => p.category_id === cat.id)
+    }
+  })
 })
 
 const formatRupiah = (angka) => {
@@ -47,7 +56,6 @@ const onImageError = (event) => {
   event.target.src = 'https://placehold.co/400x400/EBF3FB/5A7A9A?text=Image+Error'
 }
 
-// --- FETCH BEST SELLER DARI PUBLIC API ---
 const fetchBestSellers = async (outletId) => {
   try {
     const response = await api.get('/public/top-products', {
@@ -80,6 +88,10 @@ const fetchMenu = async () => {
       await fetchBestSellers(tableInfo.value.outlet_id)
     }
     
+    // Set kategori aktif pertama secara default
+    if (categories.value.length > 0) {
+      activeCategory.value = categories.value[0].id
+    }
   } catch (err) {
     error.value = 'Gagal memuat menu. Pastikan QR meja valid.'
     console.error('Fetch error:', err)
@@ -88,8 +100,74 @@ const fetchMenu = async () => {
   }
 }
 
+// --- LOGIC SCROLL SPY & AUTO GESER NAVIGASI ---
+const setSectionRef = (el, catId) => {
+  if (el) sectionRefs.value[catId] = el
+}
+
+const onScroll = () => {
+  if (isClickScrolling) return
+
+  const headerOffset = 130 // Jarak offset sticky header
+  let currentCatId = activeCategory.value
+
+  for (const [catId, el] of Object.entries(sectionRefs.value)) {
+    const rect = el.getBoundingClientRect()
+    // Deteksi jika judul kategori sudah menyentuh / dekat dengan sticky header
+    if (rect.top <= headerOffset && rect.bottom > headerOffset) {
+      // Pastikan tipe data sama dengan id aslinya
+      currentCatId = isNaN(catId) ? catId : Number(catId) 
+      break
+    }
+  }
+
+  if (currentCatId !== activeCategory.value) {
+    activeCategory.value = currentCatId
+    scrollToCategoryPill(currentCatId)
+  }
+}
+
+const scrollToCategory = (catId) => {
+  activeCategory.value = catId
+  isClickScrolling = true
+  scrollToCategoryPill(catId)
+
+  const el = sectionRefs.value[catId]
+  if (el) {
+    // Scroll layar ke section kategori terpilih dengan memberi ruang untuk sticky header
+    const y = el.getBoundingClientRect().top + window.scrollY - 110 
+    window.scrollTo({ top: y, behavior: 'smooth' })
+
+    // Nonaktifkan event scroll sementara agar spy tidak bentrok saat transisi
+    setTimeout(() => {
+      isClickScrolling = false
+    }, 800)
+  }
+}
+
+const scrollToCategoryPill = (catId) => {
+  const nav = categoryNavRef.value
+  if (!nav) return
+
+  nextTick(() => {
+    const pill = nav.querySelector(`[data-cat-id="${catId}"]`)
+    if (pill) {
+      const navRect = nav.getBoundingClientRect()
+      const pillRect = pill.getBoundingClientRect()
+      // Posisikan pill agar selalu berada di tengah area horizontal
+      const scrollLeft = pill.offsetLeft - (navRect.width / 2) + (pillRect.width / 2)
+      nav.scrollTo({ left: scrollLeft, behavior: 'smooth' })
+    }
+  })
+}
+
 onMounted(() => {
+  window.addEventListener('scroll', onScroll)
   fetchMenu()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', onScroll)
 })
 </script>
 
@@ -112,59 +190,62 @@ onMounted(() => {
     </div>
 
     <template v-else>
-      <div class="category-container">
-        <div class="category-scroll">
-          <button 
-            class="category-pill" 
-            :class="{ active: activeCategory === 'ALL' }"
-            @click="activeCategory = 'ALL'"
-          >
-            Semua
-          </button>
+      <div class="category-container sticky-top">
+        <div class="category-scroll" ref="categoryNavRef">
           <button 
             v-for="cat in categories" 
             :key="cat.id"
+            :data-cat-id="cat.id"
             class="category-pill"
             :class="{ active: activeCategory === cat.id }"
-            @click="activeCategory = cat.id"
+            @click="scrollToCategory(cat.id)"
           >
             {{ cat.name }}
           </button>
         </div>
       </div>
 
-      <div class="product-grid">
+      <div class="product-list">
         <div 
-          v-for="product in filteredProducts" 
-          :key="product.id" 
-          class="product-card"
-          :class="{ 'out-of-stock': product.stock <= 0 }"
+          v-for="group in groupedProducts" 
+          :key="group.id"
+          :ref="el => setSectionRef(el, group.id)"
+          class="category-section"
         >
-          <div class="product-image-wrap">
-            <img :src="getImageUrl(product.image)" :alt="product.name" @error="onImageError" loading="lazy" />
-            
-            <div v-if="product.is_best_seller" class="badge-bestseller">
-              ★ Best Seller
-            </div>
-
-            <div v-if="product.stock <= 0" class="overlay-soldout">
-              <span>Habis</span>
-            </div>
-          </div>
+          <h2 class="category-title">{{ group.name }}</h2>
           
-          <div class="product-info">
-            <h3 class="product-title">{{ product.name }}</h3>
-            <p v-if="product.description" class="product-desc">{{ product.description }}</p>
-            
-            <div class="product-footer">
-              <span class="text-price">Rp {{ formatRupiah(product.price) }}</span>
-              <button 
-                class="btn-add" 
-                :disabled="product.stock <= 0"
-                @click="cartStore.addItem(product)"
-              >
-                {{ product.stock <= 0 ? 'Habis' : '+ Tambah' }}
-              </button>
+          <div class="list-container">
+            <div 
+              v-for="product in group.items" 
+              :key="product.id" 
+              class="product-item"
+              :class="{ 'out-of-stock': product.stock <= 0 }"
+            >
+              <div class="product-image-wrap">
+                <img :src="getImageUrl(product.image)" :alt="product.name" @error="onImageError" loading="lazy" />
+                </div>
+              
+              <div class="product-info">
+                <div v-if="product.is_best_seller" class="badge-bestseller">
+                  ★ Best Seller
+                </div>
+                
+                <h3 class="product-title">{{ product.name }}</h3>
+                <p v-if="product.description" class="product-desc">{{ product.description }}</p>
+                
+                <div class="product-footer">
+                  <span v-if="product.stock > 0" class="text-price">Rp {{ formatRupiah(product.price) }}</span>
+                  <span v-else class="text-soldout-price">Habis</span>
+
+                  <button 
+                    v-if="product.stock > 0"
+                    class="btn-add-circle" 
+                    @click="cartStore.addItem(product)"
+                  >
+                    <span>+</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -195,8 +276,23 @@ onMounted(() => {
 .outlet-name { font-size: 22px; font-weight: 700; color: #1A2332; margin: 0; }
 .table-label { font-size: 14px; color: #5A7A9A; font-weight: 500; margin-top: 2px; }
 
-.category-container { margin: 0 -16px 20px -16px; }
-.category-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 0 16px 8px 16px; scrollbar-width: none; }
+/* Sticky Container Kategori */
+.category-container.sticky-top { 
+  margin: 0 -16px 12px -16px; 
+  position: sticky; 
+  top: 0; 
+  z-index: 10; 
+  background-color: #FFFFFF; 
+  padding-top: 10px;
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.9);
+}
+.category-scroll { 
+  display: flex; 
+  gap: 10px; 
+  overflow-x: auto; 
+  padding: 0 16px 12px 16px; 
+  scrollbar-width: none; 
+}
 .category-scroll::-webkit-scrollbar { display: none; }
 
 .category-pill {
@@ -204,57 +300,136 @@ onMounted(() => {
   background: #FFFFFF; color: #5A7A9A; font-size: 13px; font-weight: 500;
   white-space: nowrap; cursor: pointer; transition: all 0.2s ease;
 }
-.category-pill.active { background: #2E7DD6; color: #FFFFFF; border-color: #2E7DD6; }
 
-.product-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+.category-pill.active { 
+  background: rgba(46, 125, 214, 0.1); 
+  color: #2E7DD6; 
+  border-color: #2E7DD6; 
 }
 
-@media (min-width: 640px) {
-  .product-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+/* Styling List Menu */
+.product-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
-.product-card {
-  background: #FFFFFF; border: 1px solid #EAE6DF; border-radius: 16px;
-  overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s ease;
+.category-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1A2332;
+  margin-bottom: 12px;
 }
-.product-card:active { transform: scale(0.98); }
 
-/* --- EFEK STOK HABIS (GRAYSCALE) --- */
-.product-card.out-of-stock { filter: grayscale(100%); opacity: 0.8; pointer-events: none; border-color: #D1D5DB; }
+.list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 
-.product-image-wrap { position: relative; width: 100%; aspect-ratio: 1/1; background-color: #EBF3FB; }
+.product-item {
+  display: flex;
+  flex-direction: row;
+  background: #FFFFFF;
+  border-bottom: 1px solid #F3F4F6;
+  padding-bottom: 16px;
+  gap: 16px;
+}
+.product-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+/* --- EFEK STOK HABIS --- */
+/* Matikan interaksi. Grayscale dihapus agar warna asli tetap muncul */
+.product-item.out-of-stock { 
+  pointer-events: none; 
+}
+/* Turunkan opacity HANYA pada foto, nama, dan deskripsi */
+.product-item.out-of-stock .product-image-wrap img,
+.product-item.out-of-stock .product-title,
+.product-item.out-of-stock .product-desc {
+  opacity: 0.4;
+}
+
+.product-image-wrap { 
+  position: relative; 
+  width: 90px; 
+  min-width: 90px;
+  height: 90px; 
+  background-color: #EBF3FB; 
+  border-radius: 12px;
+  overflow: hidden;
+}
 .product-image-wrap img { width: 100%; height: 100%; object-fit: cover; }
 
+/* Info Kanan */
+.product-info { 
+  display: flex; 
+  flex-direction: column; 
+  flex-grow: 1; 
+  justify-content: center;
+}
+
 .badge-bestseller {
-  position: absolute; top: 8px; left: 8px; background: #F59E0B; color: #FFFFFF;
-  padding: 3px 8px; font-size: 10px; font-weight: 700; border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  align-self: flex-start;
+  background: #FEF3C7; color: #D97706; border: 1px solid #FDE68A;
+  padding: 2px 6px; 
+  font-size: 9px; 
+  font-weight: 700; border-radius: 4px;
+  margin-bottom: 4px;
 }
 
-.overlay-soldout {
-  position: absolute; inset: 0; background: rgba(255, 255, 255, 0.4);
-  display: flex; align-items: center; justify-content: center;
+.product-title { 
+  font-size: 14px; 
+  font-weight: 600; 
+  color: #1A2332; 
+  margin: 0 0 4px 0; 
+  line-height: 1.3; 
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; 
 }
-.overlay-soldout span {
-  background: #5A7A9A; color: white; padding: 4px 12px; border-radius: 6px;
-  font-weight: 700; font-size: 12px;
+.product-desc { 
+  font-size: 11px; 
+  color: #7A7A7A; 
+  margin-bottom: 8px; 
+  line-height: 1.4; 
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; 
 }
 
-.product-info { padding: 12px; display: flex; flex-direction: column; flex-grow: 1; }
-.product-title { font-size: 13px; font-weight: 600; color: #1A2332; margin: 0 0 4px 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.product-desc { font-size: 10px; color: #7A7A7A; margin-bottom: 12px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-
-.product-footer { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
-.text-price { font-weight: 700; color: #2E7DD6; font-size: 13px; font-family: 'JetBrains Mono', monospace; } /* WARNA BIRU HARGA */
-
-.btn-add {
-  width: 100%; background: #2E7DD6; color: #FFFFFF; border: none; padding: 8px;
-  border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s;
+.product-footer { 
+  margin-top: auto; 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
 }
-.btn-add:disabled { background: #D1D5DB; color: #9CA3AF; }
+
+.text-price { font-weight: 700; color: #2E7DD6; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
+
+/* Harga berubah jadi Habis: Ukuran lebih kecil, tidak terlalu tebal, dan warna merah */
+.text-soldout-price { 
+  font-weight: 600; 
+  color: #EF4444; /* Warna Merah Solid */
+  font-size: 12px; /* Ukuran lebih kecil dari harga */
+}
+
+/* Tombol Plus Circle */
+.btn-add-circle {
+  width: 28px; 
+  height: 28px;
+  background: #2E7DD6; 
+  color: #FFFFFF; 
+  border: none; 
+  border-radius: 50%; 
+  font-size: 18px; 
+  font-weight: 600; 
+  cursor: pointer; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s ease;
+  padding: 0;
+}
+.btn-add-circle:active { transform: scale(0.9); }
 
 .floating-cart {
   position: fixed; bottom: 20px; left: 16px; right: 16px;
