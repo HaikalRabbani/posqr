@@ -386,14 +386,27 @@ onUnmounted(() => {
   color: #1A2332; 
   margin: 0 0 4px 0; 
   line-height: 1.3; 
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; 
+  display: -webkit-box; 
+  -webkit-line-clamp: 2; 
+  line-clamp: 2; 
+  -webkit-box-orient: vertical; 
+  overflow: hidden; 
+  
+  word-wrap: break-word;
 }
+
 .product-desc { 
   font-size: 11px; 
   color: #7A7A7A; 
   margin-bottom: 8px; 
   line-height: 1.4; 
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; 
+  display: -webkit-box; 
+  -webkit-line-clamp: 2; 
+  line-clamp: 2; 
+  -webkit-box-orient: vertical; 
+  overflow: hidden; 
+  
+  word-wrap: break-word;
 }
 
 .product-footer { 
