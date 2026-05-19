@@ -18,6 +18,22 @@ const sectionRefs = ref({})
 const categoryNavRef = ref(null)
 let isClickScrolling = false
 
+const showToast = ref(false)
+const toastMessage = ref('')
+let toastTimer = null
+
+const handleAddToCart = (product) => {
+  cartStore.addItem(product)
+  
+  toastMessage.value = `masuk keranjang!`
+  showToast.value = true
+  
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => {
+    showToast.value = false
+  }, 2000)
+}
+
 const categories = computed(() => {
   const cats = []
   products.value.forEach(p => {
@@ -177,6 +193,13 @@ onUnmounted(() => {
       <h1 class="outlet-name">Selamat Datang</h1>
       <p class="table-label">Meja {{ tableInfo.name }}</p>
     </header>
+    
+    <div class="toast-notification" :class="{ 'show': showToast }">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+      {{ toastMessage }}
+    </div>
 
     <div v-if="loading" class="state-center">
       <div class="loader"></div>
@@ -240,7 +263,7 @@ onUnmounted(() => {
                   <button 
                     v-if="product.stock > 0"
                     class="btn-add-circle" 
-                    @click="cartStore.addItem(product)"
+                    @click="handleAddToCart(product)"
                   >
                     <span>+</span>
                   </button>
@@ -275,6 +298,39 @@ onUnmounted(() => {
 .menu-header { margin-bottom: 20px; }
 .outlet-name { font-size: 22px; font-weight: 700; color: #1A2332; margin: 0; }
 .table-label { font-size: 14px; color: #5A7A9A; font-weight: 500; margin-top: 2px; }
+
+/* TOAST STYLE - Warna Hijau dengan Background Pudar */
+.toast-notification {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100px);
+  
+  /* Background Hijau Pudar (Opacity rendah) */
+  background: rgba(16, 185, 129, 0.1); 
+  
+  /* Border & Font Hijau Solid */
+  border: 1px solid #10B981;
+  color: #10B981;
+  
+  padding: 10px 20px;
+  border-radius: 30px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  /* Shadow disesuaikan biar gak terlalu nabrak */
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+  z-index: 1000;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.toast-notification.show {
+  transform: translateX(-50%) translateY(0);
+}
+
 
 /* Sticky Container Kategori */
 .category-container.sticky-top { 
