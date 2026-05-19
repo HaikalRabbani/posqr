@@ -275,15 +275,15 @@ onUnmounted(() => {
       </div>
     </template>
 
-    <div v-if="cartStore.totalItems > 0" class="floating-cart">
-      <div class="cart-details">
-        <span class="cart-qty">{{ cartStore.totalItems }} Item</span>
-        <span class="cart-price">Rp {{ formatRupiah(cartStore.totalPrice) }}</span>
-      </div>
-      <button class="btn-go-to-cart" @click="router.push('/cart')">
-        Keranjang
-      </button>
+  <div v-if="cartStore.totalItems > 0" class="floating-cart" @click="router.push('/cart')">
+    <div class="cart-details">
+      <span class="cart-qty"> Cek Keranjang ({{ cartStore.totalItems }} Produk)</span>
     </div>
+    <div class="cart-action">
+      <span class="cart-price">Rp {{ formatRupiah(cartStore.totalPrice) }}</span>
+      <button class="btn-go-to-cart"> &gt; </button>
+    </div>
+  </div>
 
     <div class="bottom-spacer"></div>
   </div>
@@ -299,30 +299,26 @@ onUnmounted(() => {
 .outlet-name { font-size: 22px; font-weight: 700; color: #1A2332; margin: 0; }
 .table-label { font-size: 14px; color: #5A7A9A; font-weight: 500; margin-top: 2px; }
 
-/* TOAST STYLE - Warna Hijau dengan Background Pudar */
+/* TOAST STYLE - Solid Hijau & Ukuran Lebih Kecil */
 .toast-notification {
   position: fixed;
   top: 24px;
   left: 50%;
   transform: translateX(-50%) translateY(-100px);
   
-  /* Background Hijau Pudar (Opacity rendah) */
-  background: rgba(16, 185, 129, 0.1); 
+  /* Background Hijau Solid (Tanpa pudar) */
+  background: #d2f6ea; 
   
   /* Border & Font Hijau Solid */
-  border: 1px solid #10B981;
-  color: #10B981;
-  
-  padding: 10px 20px;
-  border-radius: 30px;
-  font-size: 13px;
+  border: 1px solid #06d48f;
+  color: #06d48f;
+  padding: 8px 16px; 
+  border-radius: 20px;
+  font-size: 12px;
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 8px;
-  
-  /* Shadow disesuaikan biar gak terlalu nabrak */
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+  gap: 6px;
   z-index: 1000;
   transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
@@ -502,23 +498,39 @@ onUnmounted(() => {
 
 .floating-cart {
   position: fixed; bottom: 20px; left: 16px; right: 16px;
-  max-width: 450px; margin: 0 auto; background: #1A2332; color: #FFFFFF;
-  padding: 16px 20px; border-radius: 18px; display: flex;
+  max-width: 450px; margin: 0 auto; background: #2E7DD6; color: #FFFFFF;
+  height: 25px;
+  padding: 10px 16px; 
+  border-radius: 8px; /* Lengkung tipis/kotak */
+  display: flex;
   justify-content: space-between; align-items: center;
-  box-shadow: 0 10px 25px rgba(26, 35, 50, 0.3); z-index: 100;
+  box-shadow: 0 4px 12px rgba(26, 35, 50, 0.2); 
+  z-index: 100;
+  cursor: pointer; /* Memberi tanda bisa diklik */
   animation: slideUp 0.3s ease forwards;
 }
 
-@keyframes slideUp { from { bottom: -100px; opacity: 0; } to { bottom: 24px; opacity: 1; } }
+.cart-details { display: flex; align-items: center; }
+.cart-qty { 
+  font-size: 13px; color: #FFFFFF; font-weight: 200; 
+}
 
-.cart-details { display: flex; flex-direction: column; }
-.cart-qty { font-size: 11px; color: #8AAFCC; font-weight: 500; }
-.cart-price { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 16px; }
+.cart-action { display: flex; align-items: center; gap: 12px; }
+.cart-price { font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 13px; }
 
 .btn-go-to-cart {
-  background: #2E7DD6; color: #FFFFFF; border: none; padding: 10px 18px;
-  border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer;
+  background: #FFFFFF; 
+  color: #2E7DD6; 
+  border: none; 
+  border-radius: 50%; 
+  font-weight: 400; 
+  font-size: 13px; 
+  cursor: pointer; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+.btn-go-to-cart:active { transform: scale(0.9); }
 
 .state-center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; padding: 20px; text-align: center; color: #5A7A9A; }
 .loader { border: 3px solid #EBF3FB; border-top: 3px solid #2E7DD6; border-radius: 50%; width: 34px; height: 34px; animation: spin 1s linear infinite; margin-bottom: 16px; }
