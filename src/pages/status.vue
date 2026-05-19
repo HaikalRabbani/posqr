@@ -6,9 +6,12 @@ import api from '../services/api.js'
 // 2. Import instansi Echo yang sudah kita buat sebelumnya
 import echo from '../services/echo.js'
 import html2canvas from 'html2canvas'
+// --- TAMBAHAN: Import cart store untuk akses token ---
+import { useCartStore } from '../stores/cart.js'
 
 const route = useRoute()
 const router = useRouter()
+const cartStore = useCartStore() // Inisialisasi store
 const order = ref(null)
 const isLoading = ref(true)
 const fetchError = ref(false)
@@ -24,6 +27,15 @@ const stopPolling = () => {
   if (pollingInterval) {
     clearInterval(pollingInterval)
     pollingInterval = null
+  }
+}
+
+// --- TAMBAHAN: Fungsi kembali ke menu sesuai token ---
+const goBackToMenu = () => {
+  if (cartStore.tableToken) {
+    router.push(`/menu/${cartStore.tableToken}`)
+  } else {
+    router.push('/') // Fallback kalau token gak ada
   }
 }
 
@@ -112,7 +124,7 @@ onUnmounted(() => {
 
 <template>
   <div class="page-wrapper">
-    <div class="back-nav" @click="router.push('/')">
+    <div class="back-nav" @click="goBackToMenu">
       <span>← Buat Pesanan Baru</span>
     </div>
 
