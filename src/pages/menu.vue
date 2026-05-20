@@ -57,6 +57,11 @@ const groupedProducts = computed(() => {
   })
 })
 
+// --- TAMBAHAN UNTUK REKOMENDASI (Maksimal 6 Produk untuk Grid 2x3) ---
+const recommendedProducts = computed(() => {
+  return products.value.filter(p => p.is_best_seller).slice(0, 6)
+})
+
 const formatRupiah = (angka) => {
   if (!angka) return '0'
   return new Intl.NumberFormat('id-ID').format(angka)
@@ -228,6 +233,41 @@ onUnmounted(() => {
         </div>
       </div>
 
+      <div v-if="recommendedProducts.length > 0" class="recommendation-section">
+        <h2 class="category-title">Rekomendasi</h2>
+        <div class="recommendation-grid">
+          <div 
+            v-for="product in recommendedProducts" 
+            :key="'rec-' + product.id"
+            class="recommendation-item"
+            :class="{ 'out-of-stock': product.stock <= 0 }"
+          >
+            <div class="rec-image-wrap">
+              <div v-if="product.is_best_seller" class="rec-badge-floating">
+                ★ Best Seller
+              </div>
+              <img :src="getImageUrl(product.image)" :alt="product.name" @error="onImageError" loading="lazy" />
+            </div>
+            
+            <div class="rec-info">
+              <span class="rec-category">{{ product.category?.name || 'Tanpa Kategori' }}</span>
+              <h3 class="rec-title">{{ product.name }}</h3>
+              <div class="rec-footer">
+                <span v-if="product.stock > 0" class="rec-price">Rp {{ formatRupiah(product.price) }}</span>
+                <span v-else class="text-soldout-price">Habis</span>
+                
+                <button 
+                  v-if="product.stock > 0"
+                  class="btn-add-circle rec-btn" 
+                  @click="handleAddToCart(product)"
+                >
+                  <span>+</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="product-list">
         <div 
           v-for="group in groupedProducts" 
@@ -246,7 +286,7 @@ onUnmounted(() => {
             >
               <div class="product-image-wrap">
                 <img :src="getImageUrl(product.image)" :alt="product.name" @error="onImageError" loading="lazy" />
-                </div>
+              </div>
               
               <div class="product-info">
                 <div v-if="product.is_best_seller" class="badge-bestseller">
@@ -275,15 +315,15 @@ onUnmounted(() => {
       </div>
     </template>
 
-  <div v-if="cartStore.totalItems > 0" class="floating-cart" @click="router.push('/cart')">
-    <div class="cart-details">
-      <span class="cart-qty"> Cek Keranjang ({{ cartStore.totalItems }} Produk)</span>
+    <div v-if="cartStore.totalItems > 0" class="floating-cart" @click="router.push('/cart')">
+      <div class="cart-details">
+        <span class="cart-qty"> Cek Keranjang ({{ cartStore.totalItems }} Produk)</span>
+      </div>
+      <div class="cart-action">
+        <span class="cart-price">Rp {{ formatRupiah(cartStore.totalPrice) }}</span>
+        <button class="btn-go-to-cart"> &gt; </button>
+      </div>
     </div>
-    <div class="cart-action">
-      <span class="cart-price">Rp {{ formatRupiah(cartStore.totalPrice) }}</span>
-      <button class="btn-go-to-cart"> &gt; </button>
-    </div>
-  </div>
 
     <div class="bottom-spacer"></div>
   </div>
@@ -299,241 +339,69 @@ onUnmounted(() => {
 .outlet-name { font-size: 22px; font-weight: 700; color: #1A2332; margin: 0; }
 .table-label { font-size: 14px; color: #5A7A9A; font-weight: 500; margin-top: 2px; }
 
-/* TOAST STYLE - Solid Hijau & Ukuran Lebih Kecil */
-.toast-notification {
-  position: fixed;
-  top: 24px;
-  left: 50%;
-  transform: translateX(-50%) translateY(-100px);
-  
-  /* Background Hijau Solid (Tanpa pudar) */
-  background: #d2f6ea; 
-  
-  /* Border & Font Hijau Solid */
-  border: 1px solid #06d48f;
-  color: #06d48f;
-  padding: 8px 16px; 
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  z-index: 1000;
-  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.toast-notification.show {
-  transform: translateX(-50%) translateY(0);
-}
-
+/* Toast Notif*/
+.toast-notification { position: fixed; top: 24px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 8px 16px; border-radius: 20px;font-size: 12px;font-weight: 600; display: flex;align-items: center;gap: 6px; z-index: 1000; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.toast-notification.show { transform: translateX(-50%) translateY(0); }
 
 /* Sticky Container Kategori */
-.category-container.sticky-top { 
-  margin: 0 -16px 12px -16px; 
-  position: sticky; 
-  top: 0; 
-  z-index: 10; 
-  background-color: #FFFFFF; 
-  padding-top: 10px;
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.9);
-}
-.category-scroll { 
-  display: flex; 
-  gap: 10px; 
-  overflow-x: auto; 
-  padding: 0 16px 12px 16px; 
-  scrollbar-width: none; 
-}
+.category-container.sticky-top { margin: 0 -16px 12px -16px; position: sticky; top: 0; z-index: 10; background-color: #FFFFFF; padding-top: 10px; box-shadow: 0 4px 12px rgba(255, 255, 255, 0.9); }
+.category-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 0 16px 12px 16px; scrollbar-width: none; }
 .category-scroll::-webkit-scrollbar { display: none; }
+.category-pill { padding: 8px 18px; border-radius: 20px; border: 1px solid #D4E4F4; background: #FFFFFF; color: #5A7A9A; font-size: 13px; font-weight: 500;white-space: nowrap; cursor: pointer; transition: all 0.2s ease; }
+.category-pill.active { background: rgba(46, 125, 214, 0.1); color: #2E7DD6; border-color: #2E7DD6; }
 
-.category-pill {
-  padding: 8px 18px; border-radius: 20px; border: 1px solid #D4E4F4;
-  background: #FFFFFF; color: #5A7A9A; font-size: 13px; font-weight: 500;
-  white-space: nowrap; cursor: pointer; transition: all 0.2s ease;
-}
 
-.category-pill.active { 
-  background: rgba(46, 125, 214, 0.1); 
-  color: #2E7DD6; 
-  border-color: #2E7DD6; 
-}
+/* Recomend Section*/
+.recommendation-section { margin-bottom: 32px;}
+.recommendation-grid { display: grid; grid-template-columns: repeat(2, 1fr);  gap: 20px 16px;}
+.recommendation-item { display: flex; flex-direction: column; gap: 6px; }
+.recommendation-item.out-of-stock { pointer-events: none; }
+.recommendation-item.out-of-stock .rec-image-wrap img,
+.recommendation-item.out-of-stock .rec-title { opacity: 0.4; }
+.rec-image-wrap { position: relative;  width: 100%; aspect-ratio: 1 / 1; background-color: #EBF3FB; border-radius: 12px; overflow: hidden; }
+.rec-image-wrap img { width: 100%; height: 100%; object-fit: cover;}
+.rec-badge-floating { position: absolute; top: 8px; left: 8px; z-index: 2; background: #FEF3C7;  color: #C4860A;  border: 1px solid #FDE68A; padding: 2px 10px; font-size: 9px; font-weight: 700; border-radius: 999px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.rec-info { display: flex; flex-direction: column; flex-grow: 1; }
+.rec-category { font-size: 10px; color: #8AAFCC; font-weight: 500; margin-bottom: 2px; }
+.rec-title {  font-size: 13px;  font-weight: 600; color: #1A2332;  margin: 0 0 6px 0;  line-height: 1.3;  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-wrap: break-word; }
+.rec-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto;}
+.rec-price { font-weight: 700; color: #2E7DD6; font-size: 12px; font-family: 'JetBrains Mono', monospace; }
+.rec-btn { width: 24px; height: 24px; font-size: 16px; }
 
-/* Styling List Menu */
-.product-list {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
+/* STYLE LIST MENU UTAMA */
+.product-list { display: flex; flex-direction: column; gap: 24px; }
+.category-title { font-size: 16px; font-weight: 700; color: #1A2332; margin-bottom: 12px; }
+.list-container { display: flex; flex-direction: column; gap: 16px; }
 
-.category-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1A2332;
-  margin-bottom: 12px;
-}
-
-.list-container {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.product-item {
-  display: flex;
-  flex-direction: row;
-  background: #FFFFFF;
-  border-bottom: 1px solid #F3F4F6;
-  padding-bottom: 16px;
-  gap: 16px;
-}
-.product-item:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-/* --- EFEK STOK HABIS --- */
-/* Matikan interaksi. Grayscale dihapus agar warna asli tetap muncul */
-.product-item.out-of-stock { 
-  pointer-events: none; 
-}
-/* Turunkan opacity HANYA pada foto, nama, dan deskripsi */
+/* Item Produk */
+.badge-bestseller { align-self: flex-start; background: #FEF3C7; color: #C4860A; border: 1px solid #FDE68A; padding: 2px 10px; font-size: 9px; font-weight: 700; border-radius: 999px; margin-bottom: 4px;}
+.product-item { display: flex; flex-direction: row; background: #FFFFFF; border-bottom: 1px solid #F3F4F6; padding-bottom: 16px; gap: 16px; }
+.product-item:last-child { border-bottom: none; padding-bottom: 0; }
+.product-item.out-of-stock { pointer-events: none; }
 .product-item.out-of-stock .product-image-wrap img,
 .product-item.out-of-stock .product-title,
-.product-item.out-of-stock .product-desc {
-  opacity: 0.4;
-}
-
-.product-image-wrap { 
-  position: relative; 
-  width: 90px; 
-  min-width: 90px;
-  height: 90px; 
-  background-color: #EBF3FB; 
-  border-radius: 12px;
-  overflow: hidden;
-}
+.product-item.out-of-stock .product-desc { opacity: 0.4; }
+.product-image-wrap { position: relative; width: 90px; min-width: 90px; height: 90px; background-color: #EBF3FB; border-radius: 12px; overflow: hidden; }
 .product-image-wrap img { width: 100%; height: 100%; object-fit: cover; }
-
-/* Info Kanan */
-.product-info { 
-  display: flex; 
-  flex-direction: column; 
-  flex-grow: 1; 
-  justify-content: center;
-}
-
-.badge-bestseller {
-  align-self: flex-start;
-  background: #FEF3C7; color: #D97706; border: 1px solid #FDE68A;
-  padding: 2px 6px; 
-  font-size: 9px; 
-  font-weight: 700; border-radius: 4px;
-  margin-bottom: 4px;
-}
-
-.product-title { 
-  font-size: 14px; 
-  font-weight: 600; 
-  color: #1A2332; 
-  margin: 0 0 4px 0; 
-  line-height: 1.3; 
-  display: -webkit-box; 
-  -webkit-line-clamp: 2; 
-  line-clamp: 2; 
-  -webkit-box-orient: vertical; 
-  overflow: hidden; 
-  
-  word-wrap: break-word;
-}
-
-.product-desc { 
-  font-size: 11px; 
-  color: #7A7A7A; 
-  margin-bottom: 8px; 
-  line-height: 1.4; 
-  display: -webkit-box; 
-  -webkit-line-clamp: 2; 
-  line-clamp: 2; 
-  -webkit-box-orient: vertical; 
-  overflow: hidden; 
-  
-  word-wrap: break-word;
-}
-
-.product-footer { 
-  margin-top: auto; 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center; 
-}
-
+.product-info { display: flex; flex-direction: column; flex-grow: 1; justify-content: center; }
+.product-title { font-size: 14px; font-weight: 600; color: #1A2332; margin: 0 0 4px 0; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-wrap: break-word; }
+.product-desc { font-size: 11px; color: #7A7A7A; margin-bottom: 8px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-wrap: break-word; }
+.product-footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; }
 .text-price { font-weight: 700; color: #2E7DD6; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
-
-/* Harga berubah jadi Habis: Ukuran lebih kecil, tidak terlalu tebal, dan warna merah */
-.text-soldout-price { 
-  font-weight: 600; 
-  color: #EF4444; /* Warna Merah Solid */
-  font-size: 12px; /* Ukuran lebih kecil dari harga */
-}
-
-/* Tombol Plus Circle */
-.btn-add-circle {
-  width: 28px; 
-  height: 28px;
-  background: #2E7DD6; 
-  color: #FFFFFF; 
-  border: none; 
-  border-radius: 50%; 
-  font-size: 18px; 
-  font-weight: 600; 
-  cursor: pointer; 
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.1s ease;
-  padding: 0;
-}
+.text-soldout-price { font-weight: 600; color: #EF4444; font-size: 12px; }
+.btn-add-circle { width: 28px; height: 28px; background: #2E7DD6; color: #FFFFFF; border: none; border-radius: 50%; font-size: 18px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.1s ease; padding: 0;}
 .btn-add-circle:active { transform: scale(0.9); }
 
-.floating-cart {
-  position: fixed; bottom: 20px; left: 16px; right: 16px;
-  max-width: 450px; margin: 0 auto; background: #2E7DD6; color: #FFFFFF;
-  height: 25px;
-  padding: 10px 16px; 
-  border-radius: 8px; /* Lengkung tipis/kotak */
-  display: flex;
-  justify-content: space-between; align-items: center;
-  box-shadow: 0 4px 12px rgba(26, 35, 50, 0.2); 
-  z-index: 100;
-  cursor: pointer; /* Memberi tanda bisa diklik */
-  animation: slideUp 0.3s ease forwards;
-}
-
+/* Cart Mengambang */
+.floating-cart { position: fixed; bottom: 20px; left: 16px; right: 16px; max-width: 450px; margin: 0 auto; background: #2E7DD6; color: #FFFFFF; height: 25px; padding: 10px 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(26, 35, 50, 0.2); z-index: 100; cursor: pointer; animation: slideUp 0.3s ease forwards; }
 .cart-details { display: flex; align-items: center; }
-.cart-qty { 
-  font-size: 13px; color: #FFFFFF; font-weight: 200; 
-}
-
+.cart-qty { font-size: 13px; color: #FFFFFF; font-weight: 200; }
 .cart-action { display: flex; align-items: center; gap: 12px; }
 .cart-price { font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 13px; }
-
-.btn-go-to-cart {
-  background: #FFFFFF; 
-  color: #2E7DD6; 
-  border: none; 
-  border-radius: 50%; 
-  width: 20px;
-  height: 20px;
-  font-weight: 600; 
-  font-size: 13px; 
-  cursor: pointer; 
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+.btn-go-to-cart { background: #FFFFFF; color: #2E7DD6; border: none; border-radius: 50%; width: 20px; height: 20px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .btn-go-to-cart:active { transform: scale(0.9); }
 
+/* Utilities */
 .state-center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; padding: 20px; text-align: center; color: #5A7A9A; }
 .loader { border: 3px solid #EBF3FB; border-top: 3px solid #2E7DD6; border-radius: 50%; width: 34px; height: 34px; animation: spin 1s linear infinite; margin-bottom: 16px; }
 @keyframes spin { 100% { transform: rotate(360deg); } }
