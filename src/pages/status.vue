@@ -149,7 +149,7 @@ onUnmounted(() => {
             <p class="invoice-num">{{ order?.invoice_number || 'PROSES GENERATE' }}</p>
           </div>
           <span class="status-badge" :class="order?.status?.toLowerCase() || 'pending'">
-            {{ order?.status?.toUpperCase() || 'PENDING' }}
+            {{ order?.status === 'pending' ? 'MENUNGGU KONFIRMASI' : (order?.status?.toUpperCase() || 'PENDING') }}
           </span>
         </div>
         
@@ -222,11 +222,14 @@ onUnmounted(() => {
         <p v-if="order?.status === 'pending' && order?.payment_method === 'cash'">
           Silakan tunjukkan layar atau gambar struk ini ke kasir untuk melakukan pembayaran.
         </p>
-        <p v-else-if="order?.status === 'pending' && order?.payment_method === 'midtrans'">
-          Menunggu verifikasi pembayaran online...
-        </p>
+        
+        <div v-else-if="order?.status === 'pending' && order?.payment_method === 'midtrans'" class="note-online-pending">
+          <span class="note-title">Pembayaran Sedang Diproses ⏳</span>
+          <span class="note-desc">Jangan khawatir, pesananmu sudah masuk dan akan segera dikonfirmasi oleh kasir kami.</span>
+        </div>
+        
         <p v-else-if="order?.status === 'paid'">
-          Pesanan kamu sedang kami siapkan. Terima kasih!
+          Yeay! Pembayaran berhasil dan pesanan kamu sedang kami siapkan.
         </p>
         <p v-else-if="order?.status === 'cancelled'">
           Pesanan telah dibatalkan.
@@ -279,6 +282,25 @@ onUnmounted(() => {
 
 .footer-note { margin-top: 30px; text-align: center; font-size: 12px; color: #5A7A9A; line-height: 1.6; }
 
+.note-online-pending {
+  background: #FAFCFF;
+  border: 1px solid #D4E4F4;
+  padding: 12px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.note-title {
+  font-weight: 700;
+  color: #1B4F8A; /* Warna Navy yang meyakinkan */
+  font-size: 13px;
+}
+.note-desc {
+  color: #5A7A9A;
+  font-size: 11px;
+  line-height: 1.4;
+}
 /* State Handlers */
 .state-container { text-align: center; padding: 60px 0; color: #5A7A9A; }
 .loader { border: 3px solid #EBF3FB; border-top: 3px solid #2E7DD6; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 16px; }
