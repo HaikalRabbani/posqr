@@ -194,9 +194,23 @@ onUnmounted(() => {
 
 <template>
   <div class="page-wrapper">
-    <header v-if="tableInfo && !loading && !error" class="menu-header">
-      <h1 class="outlet-name">Selamat Datang</h1>
-      <p class="table-label">Meja {{ tableInfo.name }}</p>
+    <header v-if="tableInfo && !loading && !error" class="saas-header">
+      <div class="header-ornament">
+        <div class="circle-1"></div>
+        <div class="circle-2"></div>
+      </div>
+      
+      <div class="header-content-wrapper">
+        <div class="header-text-left">
+          <h1 class="saas-title">Halo, selamat datang!</h1>
+          <p class="saas-subtitle">Pesan menu favoritmu dari sini.</p>
+        </div>
+        
+        <div class="header-table-right">
+          <span class="table-label-clean">MEJA</span>
+          <span class="table-number-clean">{{ tableInfo.name }}</span>
+        </div>
+      </div>
     </header>
     
     <div class="toast-notification" :class="{ 'show': showToast }">
@@ -335,9 +349,101 @@ onUnmounted(() => {
 .page-wrapper { font-family: 'Poppins', sans-serif; background-color: #FFFFFF; min-height: 100vh; padding: 16px; }
 .bottom-spacer { height: 120px; }
 
-.menu-header { margin-bottom: 20px; }
-.outlet-name { font-size: 22px; font-weight: 700; color: #1A2332; margin: 0; }
-.table-label { font-size: 14px; color: #5A7A9A; font-weight: 500; margin-top: 2px; }
+/* --- STYLE HEADER SAAS UNIVERSAL (CSS ABSTRACT PATTERN) --- */
+.saas-header {
+  position: relative;
+  /* Gradasi halus khas SaaS modern */
+  background: linear-gradient(135deg, #2E7DD6 0%, #1B4F8A 100%);
+  border-radius: 16px;
+  padding: 24px 20px;
+  margin-bottom: 24px;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(27, 79, 138, 0.15);
+  color: #FFFFFF;
+}
+
+/* --- ORNAMEN ABSTRAK --- */
+/* Membuat pola lingkaran modern di background agar tidak flat */
+.header-ornament {
+  position: absolute;
+  inset: 0;
+  pointer-events: none; /* Supaya tidak mengganggu klik */
+  z-index: 1;
+}
+
+.circle-1 {
+  position: absolute;
+  width: 140px;
+  height: 140px;
+  background: linear-gradient(to bottom right, rgba(255,255,255,0.15), rgba(255,255,255,0));
+  border-radius: 50%;
+  top: -40px;
+  right: 10%;
+}
+
+.circle-2 {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 50%;
+  bottom: -20px;
+  right: -10px;
+}
+
+/* --- KONTEN HEADER --- */
+.header-content-wrapper {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.header-text-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 70%;
+}
+
+.saas-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.saas-subtitle {
+  font-size: 12px;
+  color: #EBF3FB;
+  margin: 0;
+  opacity: 0.9;
+}
+
+.header-table-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  margin-top: -2px; /* Slight adjust biar sejajar sama teks kiri */
+}
+
+.table-label-clean {
+  font-size: 10px;
+  font-weight: 700;
+  color: #8AAFCC;
+  letter-spacing: 1px;
+  margin-bottom: 2px;
+}
+
+.table-number-clean {
+  font-size: 28px;
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1;
+  color: #FFFFFF;
+}
 
 /* Toast Notif*/
 .toast-notification { position: fixed; top: 24px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 8px 16px; border-radius: 20px;font-size: 12px;font-weight: 600; display: flex;align-items: center;gap: 6px; z-index: 1000; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
