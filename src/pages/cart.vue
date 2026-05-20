@@ -37,7 +37,34 @@ const activeDiscount = computed(() => cartStore.appliedDiscount)
 const discountAmount = computed(() => cartStore.discountAmount)
 
 const isDiscountEligible = (d) => {
-  return d.min_purchase === 0 || cartStore.totalPrice >= d.min_purchase
+  // 1. Cek syarat minimal belanja dulu
+  const meetMinPurchase = d.min_purchase === 0 || cartStore.totalPrice >= d.min_purchase;
+  if (!meetMinPurchase) return false;
+
+  // 2. Cek kecocokan produk/kategori di dalam keranjang
+  const scope = d.scope || 'global';
+  
+  if (scope === 'products') {
+    // Ambil array ID produk yang didiskon
+    let allowedIds = [];
+    if (Array.isArray(d.product_ids)) allowedIds = d.product_ids.map(Number);
+    else if (Array.isArray(d.products)) allowedIds = d.products.map(p => Number(p.id));
+    
+    // Validasi: Apakah ada minimal 1 produk di keranjang yang cocok dengan ID promo?
+    return cartStore.items.some(item => allowedIds.includes(Number(item.product_id)));
+    
+  } else if (scope === 'categories') {
+    // Ambil array ID kategori yang didiskon
+    let allowedCats = [];
+    if (Array.isArray(d.category_ids)) allowedCats = d.category_ids.map(Number);
+    else if (Array.isArray(d.categories)) allowedCats = d.categories.map(c => Number(c.id));
+    
+    // Validasi: Apakah ada minimal 1 produk di keranjang yang kategorinya cocok dengan promo?
+    return cartStore.items.some(item => allowedCats.includes(Number(item.category_id)));
+  }
+
+  // 3. Jika scope-nya 'global', berarti otomatis valid (karena syarat min_purchase sudah lolos di atas)
+  return true;
 }
 
 const selectDiscount = (discountItem) => {
