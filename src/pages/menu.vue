@@ -258,7 +258,7 @@ onUnmounted(() => {
                 
                 <div class="product-footer">
                   <span v-if="product.stock > 0" class="text-price">Rp {{ formatRupiah(product.price) }}</span>
-                  <span v-else class="text-soldout-price">Habis</span>
+                  <span v-else class="text-soldout-price">Habis Terjual</span>
 
                   <button 
                     v-if="product.stock > 0"
@@ -523,6 +523,8 @@ onUnmounted(() => {
   color: #2E7DD6; 
   border: none; 
   border-radius: 50%; 
+  width: 20px;
+  height: 20px;
   font-weight: 600; 
   font-size: 13px; 
   cursor: pointer; 
