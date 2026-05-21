@@ -9,12 +9,11 @@ const cartStore = useCartStore()
 
 const paymentMethod = ref('cash') 
 const isSubmitting = ref(false)
-const showDiscountModal = ref(false) // Kontrol Modal Diskon
-const nameError = ref(false) // State validasi nama pelanggan
+const showDiscountModal = ref(false) 
+const nameError = ref(false) 
 
 const availableTaxes = ref([])
 const availableDiscounts = ref([])
-const selectedDiscountId = ref(null)
 
 const fetchTaxesAndDiscounts = async () => {
   try {
@@ -31,47 +30,67 @@ const fetchTaxesAndDiscounts = async () => {
 
 onMounted(() => { fetchTaxesAndDiscounts() })
 
-// --- LOGIKA DISKON ---
-const activeDiscount = computed(() => availableDiscounts.value.find(d => d.id === selectedDiscountId.value))
+// --- LOGIKA DISKON (SUDAH DI-SINKRONKAN KE PINIA) ---
+const activeDiscount = computed(() => cartStore.appliedDiscount)
 
-const discountAmount = computed(() => {
-  if (!activeDiscount.value) return 0
-  const d = activeDiscount.value
-  if (d.min_purchase > 0 && cartStore.totalPrice < d.min_purchase) return 0 
-
-  if (d.type === 'percentage') {
-    let calc = cartStore.totalPrice * (d.value / 100)
-    return Math.round(d.max_discount && calc > d.max_discount ? d.max_discount : calc)
-  }
-  return Math.min(d.value, cartStore.totalPrice)
-})
+// FIX BESAR: Panggil langsung dari cartStore, jangan hitung ulang!
+const discountAmount = computed(() => cartStore.discountAmount)
 
 const isDiscountEligible = (d) => {
-  return d.min_purchase === 0 || cartStore.totalPrice >= d.min_purchase
+  // 1. Cek syarat minimal belanja dulu
+  const meetMinPurchase = d.min_purchase === 0 || cartStore.totalPrice >= d.min_purchase;
+  if (!meetMinPurchase) return false;
+
+  // 2. Cek kecocokan produk/kategori di dalam keranjang
+  const scope = d.scope || 'global';
+  
+  if (scope === 'products') {
+    // Ambil array ID produk yang didiskon
+    let allowedIds = [];
+    if (Array.isArray(d.product_ids)) allowedIds = d.product_ids.map(Number);
+    else if (Array.isArray(d.products)) allowedIds = d.products.map(p => Number(p.id));
+    
+    // Validasi: Apakah ada minimal 1 produk di keranjang yang cocok dengan ID promo?
+    return cartStore.items.some(item => allowedIds.includes(Number(item.product_id)));
+    
+  } else if (scope === 'categories') {
+    // Ambil array ID kategori yang didiskon
+    let allowedCats = [];
+    if (Array.isArray(d.category_ids)) allowedCats = d.category_ids.map(Number);
+    else if (Array.isArray(d.categories)) allowedCats = d.categories.map(c => Number(c.id));
+    
+    // Validasi: Apakah ada minimal 1 produk di keranjang yang kategorinya cocok dengan promo?
+    return cartStore.items.some(item => allowedCats.includes(Number(item.category_id)));
+  }
+
+  // 3. Jika scope-nya 'global', berarti otomatis valid (karena syarat min_purchase sudah lolos di atas)
+  return true;
 }
 
-const selectDiscount = (id) => {
-  selectedDiscountId.value = (selectedDiscountId.value === id ? null : id)
+const selectDiscount = (discountItem) => {
+  if (activeDiscount.value?.id === discountItem.id) {
+    cartStore.removeDiscount()
+  } else {
+    cartStore.applyDiscount(discountItem)
+  }
   showDiscountModal.value = false
 }
 
 // --- LOGIKA MULTI-PAJAK (METODE BERTINGKAT / SEKUENSIAL) ---
-const amountAfterDiscount = computed(() => Math.max(0, cartStore.totalPrice - discountAmount.value))
+// FIX BESAR: Pakai grandTotal dari cartStore yang sudah akurat
+const amountAfterDiscount = computed(() => cartStore.grandTotal)
 
 const taxBreakdown = computed(() => {
-  // Nilai dasar awal adalah subtotal setelah diskon
   let currentBaseAmount = amountAfterDiscount.value; 
 
   return availableTaxes.value.map(tax => {
     let amount = 0
     if (tax.type === 'percentage') {
-      // Hitung persen dari nilai dasar saat ini (yang sudah ditambah pajak sebelumnya)
       amount = Math.round(currentBaseAmount * (tax.rate / 100))
     } else {
       amount = tax.rate
     }
     
-    // Tambahkan nominal pajak ini ke nilai dasar untuk dihitung oleh pajak berikutnya
     currentBaseAmount += amount; 
 
     return { 
@@ -85,12 +104,13 @@ const taxBreakdown = computed(() => {
 })
 
 const totalTaxAmount = computed(() => taxBreakdown.value.reduce((sum, item) => sum + item.amount, 0))
+
+// FIX BESAR: Final Total
 const grandTotal = computed(() => amountAfterDiscount.value + totalTaxAmount.value)
 
 const formatRupiah = (angka) => new Intl.NumberFormat('id-ID').format(angka)
 
 const handleCheckout = async () => {
-  // Cek apakah nama diisi
   if (!cartStore.customerName) {
     nameError.value = true
     return
@@ -108,7 +128,7 @@ const handleCheckout = async () => {
       payment_method: paymentMethod.value,
       tax_amount: totalTaxAmount.value,
       tax_breakdown: taxBreakdown.value,
-      discount_id: selectedDiscountId.value,
+      discount_id: activeDiscount.value?.id || null, // Ambil ID dari store
       items: cartStore.items.map(item => ({
         product_id: item.product_id,
         qty: item.qty,
@@ -120,14 +140,12 @@ const handleCheckout = async () => {
     const response = await api.post('/public/order', payload)
     const paymentUrl = response.data?.data?.redirect_url || response.data?.payment_url
     
-    // PERBAIKAN: Tangkap order ID dari berbagai kemungkinan struktur JSON Laravel
     const orderId = response.data?.data?.order?.id || response.data?.order?.id || response.data?.data?.id || response.data?.id
     
     cartStore.clearCart()
     if (paymentMethod.value === 'midtrans' && paymentUrl) {
       window.location.href = paymentUrl 
     } else {
-      // PERBAIKAN: Cegah routing ke '/status/undefined' yang menyebabkan blank screen
       if (orderId) {
         router.push(`/status/${orderId}`)
       } else {
@@ -197,6 +215,7 @@ const handleCheckout = async () => {
         </div>
         <div class="voucher-right">
           <span v-if="!activeDiscount" class="voucher-hint">Gunakan Voucher</span>
+          <!-- FIX TAMPILAN: Sekarang memanggil hasil olahan Pinia -->
           <span v-else class="voucher-price">-Rp {{ formatRupiah(discountAmount) }}</span>
           <span class="arrow">›</span>
         </div>
@@ -218,6 +237,7 @@ const handleCheckout = async () => {
       </div>
       <div v-if="discountAmount > 0" class="summary-row">
         <span class="muted-label">Diskon ({{ activeDiscount?.name }})</span>
+        <!-- FIX TAMPILAN: Sama seperti di atas -->
         <span class="mono-value diskon-text">- Rp {{ formatRupiah(discountAmount) }}</span>
       </div>
       <div v-for="tax in taxBreakdown" :key="tax.id" class="summary-row">
@@ -241,16 +261,17 @@ const handleCheckout = async () => {
         </div>
         <div class="modal-body">
           <div v-if="availableDiscounts.length === 0" class="empty-promo">Tidak ada promo tersedia.</div>
+          <!-- FIX LOGIKA MODAL: Sesuaikan dengan cartStore -->
           <div v-for="d in availableDiscounts" :key="d.id" 
-               class="promo-card" :class="{ disabled: !isDiscountEligible(d), active: selectedDiscountId === d.id }"
-               @click="isDiscountEligible(d) ? selectDiscount(d.id) : null">
+               class="promo-card" :class="{ disabled: !isDiscountEligible(d), active: activeDiscount?.id === d.id }"
+               @click="isDiscountEligible(d) ? selectDiscount(d) : null">
             <div class="promo-info">
               <span class="promo-name">{{ d.name }}</span>
               <span class="promo-desc">{{ d.type === 'percentage' ? 'Diskon ' + d.value + '%' : 'Potongan Rp ' + formatRupiah(d.value) }}</span>
               <span class="promo-min">Min. Belanja Rp {{ formatRupiah(d.min_purchase) }}</span>
             </div>
             <div class="promo-radio">
-              <div class="radio-circle"><div v-if="selectedDiscountId === d.id" class="radio-inner"></div></div>
+              <div class="radio-circle"><div v-if="activeDiscount?.id === d.id" class="radio-inner"></div></div>
             </div>
           </div>
         </div>

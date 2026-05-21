@@ -1,25 +1,57 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+// 1. Tambahkan onUnmounted untuk membersihkan memori websocket
+import { ref, onMounted, onUnmounted, computed } from 'vue' // <-- TAMBAHAN: import computed
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api.js'
-import html2canvas from 'html2canvas' // Pastikan sudah install library ini
+// 2. Import instansi Echo yang sudah kita buat sebelumnya
+import echo from '../services/echo.js'
+import html2canvas from 'html2canvas'
+// --- TAMBAHAN: Import cart store untuk akses token ---
+import { useCartStore } from '../stores/cart.js'
 
 const route = useRoute()
 const router = useRouter()
+const cartStore = useCartStore() // Inisialisasi store
 const order = ref(null)
 const isLoading = ref(true)
 const fetchError = ref(false)
 
-// State untuk fitur download gambar
 const receiptRef = ref(null)
 const isDownloading = ref(false)
 
+// --- TAMBAHAN: Variabel penampung untuk timer interval auto-refresh ---
+let pollingInterval = null
+
+// --- TAMBAHAN: Fungsi untuk mematikan interval ---
+const stopPolling = () => {
+  if (pollingInterval) {
+    clearInterval(pollingInterval)
+    pollingInterval = null
+  }
+}
+
+// --- TAMBAHAN: Fungsi kembali ke menu sesuai token ---
+const goBackToMenu = () => {
+  if (cartStore.tableToken) {
+    router.push(`/menu/${cartStore.tableToken}`)
+  } else {
+    router.push('/') // Fallback kalau token gak ada
+  }
+}
+
 const fetchOrderStatus = async () => {
-  isLoading.value = true
+  // Hanya tampilkan loading penuh jika data order belum ada sama sekali
+  if (!order.value) isLoading.value = true
   fetchError.value = false
+  
   try {
     const response = await api.get(`/public/order/${route.params.id}`)
     order.value = response.data.data || response.data
+
+    // --- TAMBAHAN: Hentikan auto-refresh jika status sudah lunas/batal ---
+    if (order.value?.status === 'paid' || order.value?.status === 'cancelled') {
+      stopPolling()
+    }
   } catch (error) {
     console.error('Gagal mengambil status pesanan:', error)
     fetchError.value = true
@@ -28,26 +60,42 @@ const fetchOrderStatus = async () => {
   }
 }
 
+// --- LOGIKA MENDETEKSI METODE PEMBAYARAN (FALLBACK LOCAL STORAGE) ---
+const activePaymentMethod = computed(() => {
+  // 1. Cek dari database backend jika order sudah lunas dan punya relasi payments
+  if (order.value?.payments && order.value.payments.length > 0) {
+    return order.value.payments[0].method?.toLowerCase()
+  }
+  // 2. Cek dari variabel bawaan backend jika ada
+  if (order.value?.payment_method) {
+    return order.value.payment_method.toLowerCase()
+  }
+  // 3. Fallback: Ambil dari memori browser yang disimpan saat checkout tadi
+  const localMethod = localStorage.getItem(`payment_method_${route.params.id}`)
+  if (localMethod) {
+    return localMethod.toLowerCase()
+  }
+  
+  return 'midtrans' // Default jaga-jaga
+})
+// --------------------------------------------------------------------
+
 const formatRupiah = (angka) => new Intl.NumberFormat('id-ID').format(angka || 0)
 const cleanRate = (rate) => parseFloat(rate || 0)
 
-// FITUR SIMPAN GAMBAR (Menggantikan Print)
 const handleDownloadImage = async () => {
   if (!receiptRef.value) return
   
   isDownloading.value = true
   try {
-    // Tangkap elemen struk
     const canvas = await html2canvas(receiptRef.value, {
-      scale: 2, // Skala 2x agar gambar tidak pecah
-      backgroundColor: '#EBF3FB', // Samakan dengan warna latar status-card
+      scale: 2, 
+      backgroundColor: '#EBF3FB', 
       useCORS: true
     })
     
-    // Ubah ke format PNG
     const image = canvas.toDataURL("image/png")
     
-    // Proses download otomatis
     const link = document.createElement('a')
     link.download = `Struk-${order.value?.invoice_number || 'Pesanan'}.png`
     link.href = image
@@ -61,13 +109,42 @@ const handleDownloadImage = async () => {
 }
 
 onMounted(() => {
+  // Ambil data pertama kali saat halaman dibuka
   fetchOrderStatus()
+
+  // --- TAMBAHAN: Mulai auto-refresh setiap 5 detik sebagai BACKUP realtime ---
+  pollingInterval = setInterval(() => {
+    fetchOrderStatus()
+  }, 5000)
+
+  // 3. MULAI MENDENGARKAN REALTIME REVERB (TETAP DIPERTAHANKAN)
+  const orderId = route.params.id
+  echo.channel(`customer-order.${orderId}`)
+    .listen('.PaymentPaid', (e) => {
+      console.log('Sinyal Realtime: Pesanan Lunas!', e)
+      fetchOrderStatus()
+    })
+    .listen('.OrderUpdated', (e) => {
+      console.log('Sinyal Realtime: Pesanan Diubah Kasir!', e)
+      fetchOrderStatus()
+    })
+})
+
+// 4. PUTUSKAN KONEKSI SAAT PELANGGAN PINDAH HALAMAN
+onUnmounted(() => {
+  const orderId = route.params.id
+  
+  // (Perbaikan kecil: samakan nama channel leave dengan yang di-listen agar benar-benar terputus)
+  echo.leaveChannel(`customer-order.${orderId}`)
+  
+  // --- TAMBAHAN: Pastikan interval auto-refresh dimatikan ---
+  stopPolling()
 })
 </script>
 
 <template>
   <div class="page-wrapper">
-    <div class="back-nav" @click="router.push('/')">
+    <div class="back-nav" @click="goBackToMenu">
       <span>← Buat Pesanan Baru</span>
     </div>
 
@@ -92,7 +169,7 @@ onMounted(() => {
             <p class="invoice-num">{{ order?.invoice_number || 'PROSES GENERATE' }}</p>
           </div>
           <span class="status-badge" :class="order?.status?.toLowerCase() || 'pending'">
-            {{ order?.status?.toUpperCase() || 'PENDING' }}
+            {{ order?.status === 'pending' ? 'MENUNGGU KONFIRMASI' : (order?.status?.toUpperCase() || 'PENDING') }}
           </span>
         </div>
         
@@ -107,7 +184,7 @@ onMounted(() => {
           </div>
           <div class="info-row">
             <span class="label">Metode Bayar</span>
-            <span class="value text-capitalize">{{ order?.payment_method === 'midtrans' ? 'Online (QRIS)' : 'Bayar di Kasir' }}</span>
+            <span class="value text-capitalize">{{ activePaymentMethod === 'cash' ? 'Bayar di Kasir' : 'Online (QRIS)' }}</span>
           </div>
         </div>
 
@@ -153,7 +230,7 @@ onMounted(() => {
       </div>
 
       <div class="action-buttons">
-        <button class="btn-print" :disabled="isDownloading" @click="handleDownloadImage">
+        <button v-if="order?.status === 'paid'" class="btn-print" :disabled="isDownloading" @click="handleDownloadImage">
           <svg v-if="!isDownloading" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
           </svg>
@@ -162,14 +239,20 @@ onMounted(() => {
       </div>
 
       <div class="footer-note">
-        <p v-if="order?.status === 'pending' && order?.payment_method === 'cash'">
+        <p v-if="order?.status === 'pending' && activePaymentMethod === 'cash'">
           Silakan tunjukkan layar atau gambar struk ini ke kasir untuk melakukan pembayaran.
         </p>
-        <p v-else-if="order?.status === 'pending' && order?.payment_method === 'midtrans'">
-          Menunggu verifikasi pembayaran online...
+        
+        <div v-else-if="order?.status === 'pending' && activePaymentMethod !== 'cash'" class="note-online-pending">
+          <span class="note-title">Pembayaran Sedang Diproses ⏳</span>
+          <span class="note-desc">Jangan khawatir, pesananmu sudah masuk dan akan segera dikonfirmasi oleh kasir kami.</span>
+        </div>
+        
+        <p v-else-if="order?.status === 'paid'">
+          Yeay! Pembayaran berhasil dan pesanan kamu sedang kami siapkan.
         </p>
-        <p v-else>
-          Pesanan kamu sedang kami siapkan. Terima kasih!
+        <p v-else-if="order?.status === 'cancelled'">
+          Pesanan telah dibatalkan.
         </p>
       </div>
     </div>
@@ -219,6 +302,25 @@ onMounted(() => {
 
 .footer-note { margin-top: 30px; text-align: center; font-size: 12px; color: #5A7A9A; line-height: 1.6; }
 
+.note-online-pending {
+  background: #FAFCFF;
+  border: 1px solid #D4E4F4;
+  padding: 12px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.note-title {
+  font-weight: 700;
+  color: #1B4F8A; /* Warna Navy yang meyakinkan */
+  font-size: 13px;
+}
+.note-desc {
+  color: #5A7A9A;
+  font-size: 11px;
+  line-height: 1.4;
+}
 /* State Handlers */
 .state-container { text-align: center; padding: 60px 0; color: #5A7A9A; }
 .loader { border: 3px solid #EBF3FB; border-top: 3px solid #2E7DD6; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 16px; }
