@@ -1,6 +1,6 @@
 <script setup>
 // 1. Tambahkan onUnmounted untuk membersihkan memori websocket
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue' // <-- TAMBAHAN: import computed
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api.js'
 // 2. Import instansi Echo yang sudah kita buat sebelumnya
@@ -59,6 +59,26 @@ const fetchOrderStatus = async () => {
     isLoading.value = false
   }
 }
+
+// --- LOGIKA MENDETEKSI METODE PEMBAYARAN (FALLBACK LOCAL STORAGE) ---
+const activePaymentMethod = computed(() => {
+  // 1. Cek dari database backend jika order sudah lunas dan punya relasi payments
+  if (order.value?.payments && order.value.payments.length > 0) {
+    return order.value.payments[0].method?.toLowerCase()
+  }
+  // 2. Cek dari variabel bawaan backend jika ada
+  if (order.value?.payment_method) {
+    return order.value.payment_method.toLowerCase()
+  }
+  // 3. Fallback: Ambil dari memori browser yang disimpan saat checkout tadi
+  const localMethod = localStorage.getItem(`payment_method_${route.params.id}`)
+  if (localMethod) {
+    return localMethod.toLowerCase()
+  }
+  
+  return 'midtrans' // Default jaga-jaga
+})
+// --------------------------------------------------------------------
 
 const formatRupiah = (angka) => new Intl.NumberFormat('id-ID').format(angka || 0)
 const cleanRate = (rate) => parseFloat(rate || 0)
@@ -164,7 +184,7 @@ onUnmounted(() => {
           </div>
           <div class="info-row">
             <span class="label">Metode Bayar</span>
-            <span class="value text-capitalize">{{ order?.payment_method === 'midtrans' ? 'Online (QRIS)' : 'Bayar di Kasir' }}</span>
+            <span class="value text-capitalize">{{ activePaymentMethod === 'cash' ? 'Bayar di Kasir' : 'Online (QRIS)' }}</span>
           </div>
         </div>
 
@@ -219,11 +239,11 @@ onUnmounted(() => {
       </div>
 
       <div class="footer-note">
-        <p v-if="order?.status === 'pending' && order?.payment_method === 'cash'">
+        <p v-if="order?.status === 'pending' && activePaymentMethod === 'cash'">
           Silakan tunjukkan layar atau gambar struk ini ke kasir untuk melakukan pembayaran.
         </p>
         
-        <div v-else-if="order?.status === 'pending' && order?.payment_method === 'midtrans'" class="note-online-pending">
+        <div v-else-if="order?.status === 'pending' && activePaymentMethod !== 'cash'" class="note-online-pending">
           <span class="note-title">Pembayaran Sedang Diproses ⏳</span>
           <span class="note-desc">Jangan khawatir, pesananmu sudah masuk dan akan segera dikonfirmasi oleh kasir kami.</span>
         </div>
