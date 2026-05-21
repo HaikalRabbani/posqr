@@ -267,7 +267,13 @@ onUnmounted(() => {
               <span class="rec-category">{{ product.category?.name || 'Tanpa Kategori' }}</span>
               <h3 class="rec-title">{{ product.name }}</h3>
               <div class="rec-footer">
-                <span v-if="product.stock > 0" class="rec-price">Rp {{ formatRupiah(product.price) }}</span>
+                <template v-if="product.stock > 0">
+                  <div v-if="product.is_promo" style="display: flex; flex-direction: column;">
+                    <span class="rec-price">Rp {{ formatRupiah(product.promo_price) }}</span>
+                    <span style="font-size: 10px; color: #8AAFCC; text-decoration: line-through;">Rp {{ formatRupiah(product.price) }}</span>
+                  </div>
+                  <span v-else class="rec-price">Rp {{ formatRupiah(product.price) }}</span>
+                </template>
                 <span v-else class="text-soldout-price">Habis</span>
                 
                 <button 
@@ -311,7 +317,13 @@ onUnmounted(() => {
                 <p v-if="product.description" class="product-desc">{{ product.description }}</p>
                 
                 <div class="product-footer">
-                  <span v-if="product.stock > 0" class="text-price">Rp {{ formatRupiah(product.price) }}</span>
+                  <template v-if="product.stock > 0">
+                    <div v-if="product.is_promo" style="display: flex; flex-direction: column;">
+                      <span class="text-price">Rp {{ formatRupiah(product.promo_price) }}</span>
+                      <span style="font-size: 11px; color: #8AAFCC; text-decoration: line-through;">Rp {{ formatRupiah(product.price) }}</span>
+                    </div>
+                    <span v-else class="text-price">Rp {{ formatRupiah(product.price) }}</span>
+                  </template>
                   <span v-else class="text-soldout-price">Habis Terjual</span>
 
                   <button 

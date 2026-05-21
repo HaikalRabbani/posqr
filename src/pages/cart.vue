@@ -205,7 +205,14 @@ const handleCheckout = async () => {
         <span v-if="nameError" class="error-text">Nama pelanggan wajib diisi sebelum memesan.</span>
       </div>
 
-      <div class="voucher-section" @click="showDiscountModal = true">
+      <div v-if="cartStore.hasProductWithDiscount" class="voucher-locked-alert">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon-alert" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>Voucher total belanja tidak bisa digunakan karena sudah ada menu yang otomatis mendapat harga promo.</span>
+      </div>
+
+      <div v-else class="voucher-section" @click="showDiscountModal = true">
         <div class="voucher-left">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/>
@@ -215,7 +222,6 @@ const handleCheckout = async () => {
         </div>
         <div class="voucher-right">
           <span v-if="!activeDiscount" class="voucher-hint">Gunakan Voucher</span>
-          <!-- FIX TAMPILAN: Sekarang memanggil hasil olahan Pinia -->
           <span v-else class="voucher-price">-Rp {{ formatRupiah(discountAmount) }}</span>
           <span class="arrow">›</span>
         </div>
@@ -235,19 +241,27 @@ const handleCheckout = async () => {
         <span class="muted-label">Subtotal</span>
         <span class="mono-value">Rp {{ formatRupiah(cartStore.totalPrice) }}</span>
       </div>
+
+      <div v-if="cartStore.totalProductDiscount > 0" class="summary-row">
+        <span class="muted-label" style="color: #10B981; font-weight: 600;">Hemat (Promo Menu)</span>
+        <span class="mono-value" style="color: #10B981;">- Rp {{ formatRupiah(cartStore.totalProductDiscount) }}</span>
+      </div>
+
       <div v-if="discountAmount > 0" class="summary-row">
         <span class="muted-label">Diskon ({{ activeDiscount?.name }})</span>
-        <!-- FIX TAMPILAN: Sama seperti di atas -->
         <span class="mono-value diskon-text">- Rp {{ formatRupiah(discountAmount) }}</span>
       </div>
+
       <div v-for="tax in taxBreakdown" :key="tax.id" class="summary-row">
         <span class="muted-label">{{ tax.name }} ({{ tax.rate }}{{ tax.type === 'percentage' ? '%' : '' }})</span>
         <span class="mono-value">Rp {{ formatRupiah(tax.amount) }}</span>
       </div>
+
       <div class="summary-row total-row">
         <span class="total-label">Total Bayar</span>
         <span class="total-amount">Rp {{ formatRupiah(grandTotal) }}</span>
       </div>
+
       <button class="btn-primary checkout-btn" :disabled="cartStore.items.length === 0 || isSubmitting" @click="handleCheckout">
         {{ isSubmitting ? 'Sedang Memproses...' : 'Buat Pesanan Sekarang' }}
       </button>
@@ -336,6 +350,10 @@ const handleCheckout = async () => {
 .total-amount { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: #2E7DD6; }
 .checkout-btn { width: 100%; height: 52px; background: #2E7DD6; color: #FFF; border: none; border-radius: 8px; font-weight: 600; font-size: 15px; margin-top: 15px; cursor: pointer; }
 .checkout-btn:disabled { background: #8AAFCC; cursor: not-allowed; }
+
+/* Alert Voucher Terkunci */
+.voucher-locked-alert { display: flex; align-items: flex-start; gap: 8px; padding: 12px 16px; background: #FFFBEB; border: 1px solid #FEF3C7; color: #B45309; border-radius: 10px; margin-bottom: 24px; font-size: 12px; line-height: 1.4; font-weight: 500; }
+.icon-alert { width: 16px; height: 16px; color: #D97706; flex-shrink: 0; margin-top: 1px; }
 
 /* Modal Styles */
 .modal-overlay { position: fixed; inset: 0; background: rgba(26, 35, 50, 0.6); display: flex; align-items: flex-end; z-index: 1000; }
