@@ -268,9 +268,9 @@ onUnmounted(() => {
               <h3 class="rec-title">{{ product.name }}</h3>
               <div class="rec-footer">
                 <template v-if="product.stock > 0">
-                  <div v-if="product.is_promo" style="display: flex; flex-direction: column;">
+                  <div v-if="product.is_promo" style="display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;">
                     <span class="rec-price">Rp {{ formatRupiah(product.promo_price) }}</span>
-                    <span style="font-size: 10px; color: #8AAFCC; text-decoration: line-through;">Rp {{ formatRupiah(product.price) }}</span>
+                    <span style="font-size: 11px; color: #8AAFCC; text-decoration: line-through;">Rp {{ formatRupiah(product.price) }}</span>
                   </div>
                   <span v-else class="rec-price">Rp {{ formatRupiah(product.price) }}</span>
                 </template>
@@ -287,7 +287,9 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
+        <div class="category-block-spacer"></div>
       </div>
+
       <div class="product-list">
         <div 
           v-for="group in groupedProducts" 
@@ -295,7 +297,14 @@ onUnmounted(() => {
           :ref="el => setSectionRef(el, group.id)"
           class="category-section"
         >
-          <h2 class="category-title">{{ group.name }}</h2>
+          <div class="category-inner-header-container">
+            <div class="category-header-wrap">
+              <h2 class="category-title-custom">{{ group.name }}</h2>
+              <span class="category-count">{{ group.items.length }} Produk</span>
+            </div>
+            
+            <div class="category-divider-line"></div>
+          </div>
           
           <div class="list-container">
             <div 
@@ -318,9 +327,9 @@ onUnmounted(() => {
                 
                 <div class="product-footer">
                   <template v-if="product.stock > 0">
-                    <div v-if="product.is_promo" style="display: flex; flex-direction: column;">
+                    <div v-if="product.is_promo" style="display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;">
                       <span class="text-price">Rp {{ formatRupiah(product.promo_price) }}</span>
-                      <span style="font-size: 11px; color: #8AAFCC; text-decoration: line-through;">Rp {{ formatRupiah(product.price) }}</span>
+                      <span style="font-size: 12px; color: #8AAFCC; text-decoration: line-through;">Rp {{ formatRupiah(product.price) }}</span>
                     </div>
                     <span v-else class="text-price">Rp {{ formatRupiah(product.price) }}</span>
                   </template>
@@ -337,6 +346,8 @@ onUnmounted(() => {
               </div>
             </div>
           </div>
+
+          <div class="category-block-spacer"></div>
         </div>
       </div>
     </template>
@@ -483,13 +494,69 @@ onUnmounted(() => {
 .rec-category { font-size: 10px; color: #8AAFCC; font-weight: 500; margin-bottom: 2px; }
 .rec-title {  font-size: 13px;  font-weight: 600; color: #1A2332;  margin: 0 0 6px 0;  line-height: 1.3;  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-wrap: break-word; }
 .rec-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto;}
-.rec-price { font-weight: 700; color: #2E7DD6; font-size: 12px; font-family: 'JetBrains Mono', monospace; }
+
+/* UKURAN FONT HARGA REKOMENDASI DIBESARKAN JADI 14px */
+.rec-price { font-weight: 700; color: #2E7DD6; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
 .rec-btn { width: 24px; height: 24px; font-size: 16px; }
 
 /* STYLE LIST MENU UTAMA */
 .product-list { display: flex; flex-direction: column; gap: 24px; }
 .category-title { font-size: 16px; font-weight: 700; color: #1A2332; margin-bottom: 12px; }
 .list-container { display: flex; flex-direction: column; gap: 16px; }
+
+
+/* --- PERUBAHAN STYLE PEMBATAS KATEGORI, GARIS, DAN SPACER --- */
+.category-section { 
+  /* Dilepas padding bottom-nya karena digantikan block spacer */
+  margin-bottom: 24px;
+}
+
+/* Bungkus agar teks kategori dan garis putus-putus berada di batas margin normal */
+.category-inner-header-container {
+  padding: 0; 
+  margin-bottom: 20px;
+}
+
+/* Flexbox Header Kategori (Teks Kiri & Jumlah Kanan) */
+.category-header-wrap {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.category-title-custom {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1A2332;
+  margin: 0;
+}
+
+.category-count {
+  font-size: 13px;
+  font-weight: 500;
+  color: #8AAFCC;
+}
+
+/* Garis Putus-putus (Hanya dari ujung huruf kiri ke huruf kanan) */
+.category-divider-line {
+  border-bottom: 2px dashed #D4E4F4;
+}
+
+/* Kotak Persegi Panjang Pemisah Antar Kategori (Mentok Ujung ke Ujung Layar) */
+.category-block-spacer {
+  height: 10px; /* Ketebalan kotak pemisah */
+  background-color: #F3F4F6; /* Warna abu-abu soft kotak pembatas */
+  margin-left: -16px;  /* Menembus padding luar halaman kiri */
+  margin-right: -16px; /* Menembus padding luar halaman kanan */
+  margin-top: 28px;
+}
+
+/* Menghilangkan kotak pemisah di paling bawah/kategori terakhir */
+.category-section:last-child .category-block-spacer {
+  display: none;
+}
+
 
 /* Item Produk */
 .badge-bestseller { align-self: flex-start; background: #FEF3C7; color: #C4860A; border: 1px solid #FDE68A; padding: 2px 10px; font-size: 9px; font-weight: 700; border-radius: 999px; margin-bottom: 4px;}
@@ -505,7 +572,10 @@ onUnmounted(() => {
 .product-title { font-size: 14px; font-weight: 600; color: #1A2332; margin: 0 0 4px 0; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-wrap: break-word; }
 .product-desc { font-size: 11px; color: #7A7A7A; margin-bottom: 8px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-wrap: break-word; }
 .product-footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; }
-.text-price { font-weight: 700; color: #2E7DD6; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
+
+/* UKURAN FONT HARGA MENU UTAMA DIBESARKAN JADI 16px */
+.text-price { font-weight: 700; color: #2E7DD6; font-size: 16px; font-family: 'JetBrains Mono', monospace; }
+
 .text-soldout-price { font-weight: 600; color: #EF4444; font-size: 12px; }
 .btn-add-circle { width: 28px; height: 28px; background: #2E7DD6; color: #FFFFFF; border: none; border-radius: 50%; font-size: 18px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.1s ease; padding: 0;}
 .btn-add-circle:active { transform: scale(0.9); }
