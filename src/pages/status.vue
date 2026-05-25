@@ -109,7 +109,7 @@ const handleDownloadImage = async () => {
 }
 
 onMounted(() => {
-  // Ambil data pertama kali saat halaman dibuka
+  cartStore.clearCart()
   fetchOrderStatus()
 
   // --- TAMBAHAN: Mulai auto-refresh setiap 5 detik sebagai BACKUP realtime ---
