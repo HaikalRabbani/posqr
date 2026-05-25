@@ -249,6 +249,7 @@ onUnmounted(() => {
 
       <div v-if="recommendedProducts.length > 0" class="recommendation-section">
         <h2 class="category-title">Rekomendasi</h2>
+        <div class="recommendation-divider-line"></div>
         <div class="recommendation-grid">
           <div 
             v-for="product in recommendedProducts" 
@@ -501,10 +502,13 @@ onUnmounted(() => {
 
 /* STYLE LIST MENU UTAMA */
 .product-list { display: flex; flex-direction: column; gap: 24px; }
-.category-title { font-size: 16px; font-weight: 700; color: #1A2332; margin-bottom: 12px; }
+.category-title { font-size: 20px; font-weight: 700; color: #1A2332; margin-bottom: 12px; }
 .list-container { display: flex; flex-direction: column; gap: 16px; }
 
-
+.recommendation-divider-line {
+  border-bottom: 2px dashed #D4E4F4;
+  margin: 12px 0 20px 0;
+}
 /* --- PERUBAHAN STYLE PEMBATAS KATEGORI, GARIS, DAN SPACER --- */
 .category-section { 
   /* Dilepas padding bottom-nya karena digantikan block spacer */
@@ -526,7 +530,7 @@ onUnmounted(() => {
 }
 
 .category-title-custom {
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 700;
   color: #1A2332;
   margin: 0;
@@ -569,7 +573,7 @@ onUnmounted(() => {
 .product-image-wrap { position: relative; width: 90px; min-width: 90px; height: 90px; background-color: #EBF3FB; border-radius: 12px; overflow: hidden; }
 .product-image-wrap img { width: 100%; height: 100%; object-fit: cover; }
 .product-info { display: flex; flex-direction: column; flex-grow: 1; justify-content: center; }
-.product-title { font-size: 14px; font-weight: 600; color: #1A2332; margin: 0 0 4px 0; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-wrap: break-word; }
+.product-title { font-size: 16px; font-weight: 600; color: #1A2332; margin: 0 0 4px 0; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-wrap: break-word; }
 .product-desc { font-size: 11px; color: #7A7A7A; margin-bottom: 8px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-wrap: break-word; }
 .product-footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; }
 
