@@ -100,6 +100,24 @@ export const useCartStore = defineStore('cart', {
     }
   },
   actions: {
+    // Fungsi pembantu otomatis simpan data ke memori fisik lokal browser
+    saveToLocalStorage() {
+      localStorage.setItem('posqr_items_backup', JSON.stringify(this.items))
+      localStorage.setItem('posqr_name_backup', this.customerName)
+    },
+
+    // Memulihkan data belanjaan lama jika halaman dimuat ulang/back dari Midtrans
+    loadFromLocalStorage() {
+      const savedItems = localStorage.getItem('posqr_items_backup')
+      const savedName = localStorage.getItem('posqr_name_backup')
+      if (savedItems) {
+        try { this.items = JSON.parse(savedItems) } catch (e) { console.error(e) }
+      }
+      if (savedName) {
+        this.customerName = savedName
+      }
+    },
+
     setTable(token, info) {
       this.tableToken = token
       this.tableInfo = info
@@ -117,7 +135,6 @@ export const useCartStore = defineStore('cart', {
       const price = Number(product.price || product.pivot?.price || 0);
       const categoryId = Number(product.category_id || 0); 
 
-      // Ambil properti diskon bawaan dari backend appends (jika ada)
       const isPromo = product.is_promo || false;
       const promoPrice = product.promo_price ? Number(product.promo_price) : price;
       const discountAmountPerItem = product.discount_amount_per_item ? Number(product.discount_amount_per_item) : 0;
@@ -133,12 +150,12 @@ export const useCartStore = defineStore('cart', {
           price: price,
           category_id: categoryId, 
           qty: 1,
-          // Simpan status promo di level item keranjang agar sinkron
           is_promo: isPromo,
           promo_price: promoPrice,
           discount_amount_per_item: discountAmountPerItem
         })
       }
+      this.saveToLocalStorage() // <--- Simpan Perubahan
     },
     removeItem(productId) {
       const index = this.items.findIndex(item => Number(item.product_id) === Number(productId))
@@ -149,11 +166,15 @@ export const useCartStore = defineStore('cart', {
           this.items.splice(index, 1)
         }
       }
+      this.saveToLocalStorage() // <--- Simpan Perubahan
     },
     clearCart() {
       this.items = []
       this.customerName = ''
       this.appliedDiscount = null 
+      // Hapus data cadangan fisik karena transaksi selesai/dibersihkan secara sah
+      localStorage.removeItem('posqr_items_backup')
+      localStorage.removeItem('posqr_name_backup')
     }
   }
 })

@@ -28,7 +28,11 @@ const fetchTaxesAndDiscounts = async () => {
   }
 }
 
-onMounted(() => { fetchTaxesAndDiscounts() })
+onMounted(() => { 
+  // Ambil data keranjang cadangan dari localStorage saat halaman cart dibuka
+  cartStore.loadFromLocalStorage()
+  fetchTaxesAndDiscounts() 
+})
 
 // --- LOGIKA DISKON (SUDAH DI-SINKRONKAN KE PINIA) ---
 const activeDiscount = computed(() => cartStore.appliedDiscount)
@@ -139,13 +143,15 @@ const handleCheckout = async () => {
 
     const response = await api.post('/public/order', payload)
     const paymentUrl = response.data?.data?.redirect_url || response.data?.payment_url
-    
     const orderId = response.data?.data?.order?.id || response.data?.order?.id || response.data?.data?.id || response.data?.id
     
-    cartStore.clearCart()
     if (paymentMethod.value === 'midtrans' && paymentUrl) {
+      // FIX UTAMA: Jangan panggil clearCart() dulu untuk Midtrans!
+      // Biarkan data tetap aman di RAM dan LocalStorage buat jaga-jaga kalau user menekan tombol back
       window.location.href = paymentUrl 
     } else {
+      // Jika bayar di kasir (Cash), datanya aman untuk dihapus langsung saat itu juga
+      cartStore.clearCart()
       if (orderId) {
         router.push(`/status/${orderId}`)
       } else {
@@ -183,7 +189,7 @@ const handleCheckout = async () => {
           </div>
         </div>
         <div class="item-note-wrapper">
-          <input v-model="item.notes" type="text" class="input-note" placeholder="Tambahkan catatan (opsional)..." />
+          <input v-model="item.notes" type="text" class="input-note" placeholder="Tambahkan catatan (opsional)..." @input="cartStore.saveToLocalStorage()" />
         </div>
       </div>
     </div>
@@ -200,7 +206,7 @@ const handleCheckout = async () => {
           placeholder="Siapa nama kamu?" 
           class="input-minimal"
           :class="{ 'input-error': nameError }"
-          @input="nameError = false"
+          @input="() => { nameError = false; cartStore.saveToLocalStorage(); }"
         />
         <span v-if="nameError" class="error-text">Nama pelanggan wajib diisi sebelum memesan.</span>
       </div>
