@@ -267,23 +267,28 @@ onUnmounted(() => {
             <div class="rec-info">
               <span class="rec-category">{{ product.category?.name || 'Tanpa Kategori' }}</span>
               <h3 class="rec-title">{{ product.name }}</h3>
-              <div class="rec-footer">
-                <template v-if="product.stock > 0">
-                  <div v-if="product.is_promo" style="display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;">
-                    <span class="rec-price">Rp {{ formatRupiah(product.promo_price) }}</span>
-                    <span style="font-size: 11px; color: #8AAFCC; text-decoration: line-through;">Rp {{ formatRupiah(product.price) }}</span>
-                  </div>
-                  <span v-else class="rec-price">Rp {{ formatRupiah(product.price) }}</span>
-                </template>
-                <span v-else class="text-soldout-price">Habis</span>
-                
-                <button 
-                  v-if="product.stock > 0"
-                  class="btn-add-circle rec-btn" 
-                  @click="handleAddToCart(product)"
-                >
-                  <span>+</span>
-                </button>
+              <div class="rec-footer-wrapper">
+                <div class="rec-footer">
+                  <template v-if="product.stock > 0">
+                    <div v-if="product.is_promo && (!product.min_purchase || Number(product.min_purchase) === 0)" style="display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;">
+                      <span class="rec-price">Rp {{ formatRupiah(product.promo_price) }}</span>
+                      <span style="font-size: 11px; color: #8AAFCC; text-decoration: line-through;">Rp {{ formatRupiah(product.price) }}</span>
+                    </div>
+                    <span v-else class="rec-price">Rp {{ formatRupiah(product.price) }}</span>
+                  </template>
+                  <span v-else class="text-soldout-price">Habis</span>
+                  
+                  <button 
+                    v-if="product.stock > 0"
+                    class="btn-add-circle rec-btn" 
+                    @click="handleAddToCart(product)"
+                  >
+                    <span>+</span>
+                  </button>
+                </div>
+                <div v-if="product.stock > 0 && product.is_promo && product.min_purchase && Number(product.min_purchase) > 0" class="promo-requirement-text">
+                  *Min. belanja Rp {{ formatRupiah(product.min_purchase) }} dapat diskon
+                </div>
               </div>
             </div>
           </div>
@@ -326,23 +331,28 @@ onUnmounted(() => {
                 <h3 class="product-title">{{ product.name }}</h3>
                 <p v-if="product.description" class="product-desc">{{ product.description }}</p>
                 
-                <div class="product-footer">
-                  <template v-if="product.stock > 0">
-                    <div v-if="product.is_promo" style="display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;">
-                      <span class="text-price">Rp {{ formatRupiah(product.promo_price) }}</span>
-                      <span style="font-size: 12px; color: #8AAFCC; text-decoration: line-through;">Rp {{ formatRupiah(product.price) }}</span>
-                    </div>
-                    <span v-else class="text-price">Rp {{ formatRupiah(product.price) }}</span>
-                  </template>
-                  <span v-else class="text-soldout-price">Habis Terjual</span>
+                <div class="product-footer-wrapper">
+                  <div class="product-footer">
+                    <template v-if="product.stock > 0">
+                      <div v-if="product.is_promo && (!product.min_purchase || Number(product.min_purchase) === 0)" style="display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;">
+                        <span class="text-price">Rp {{ formatRupiah(product.promo_price) }}</span>
+                        <span style="font-size: 12px; color: #8AAFCC; text-decoration: line-through;">Rp {{ formatRupiah(product.price) }}</span>
+                      </div>
+                      <span v-else class="text-price">Rp {{ formatRupiah(product.price) }}</span>
+                    </template>
+                    <span v-else class="text-soldout-price">Habis Terjual</span>
 
-                  <button 
-                    v-if="product.stock > 0"
-                    class="btn-add-circle" 
-                    @click="handleAddToCart(product)"
-                  >
-                    <span>+</span>
-                  </button>
+                    <button 
+                      v-if="product.stock > 0"
+                      class="btn-add-circle" 
+                      @click="handleAddToCart(product)"
+                    >
+                      <span>+</span>
+                    </button>
+                  </div>
+                  <div v-if="product.stock > 0 && product.is_promo && product.min_purchase && Number(product.min_purchase) > 0" class="promo-requirement-text">
+                    *Min. belanja Rp {{ formatRupiah(product.min_purchase) }} dapat diskon
+                  </div>
                 </div>
               </div>
             </div>
@@ -376,7 +386,6 @@ onUnmounted(() => {
 /* --- STYLE HEADER SAAS UNIVERSAL (CSS ABSTRACT PATTERN) --- */
 .saas-header {
   position: relative;
-  /* Gradasi halus khas SaaS modern */
   background: linear-gradient(135deg, #2E7DD6 0%, #1B4F8A 100%);
   border-radius: 16px;
   padding: 24px 20px;
@@ -386,12 +395,10 @@ onUnmounted(() => {
   color: #FFFFFF;
 }
 
-/* --- ORNAMEN ABSTRAK --- */
-/* Membuat pola lingkaran modern di background agar tidak flat */
 .header-ornament {
   position: absolute;
   inset: 0;
-  pointer-events: none; /* Supaya tidak mengganggu klik */
+  pointer-events: none;
   z-index: 1;
 }
 
@@ -415,7 +422,6 @@ onUnmounted(() => {
   right: -10px;
 }
 
-/* --- KONTEN HEADER --- */
 .header-content-wrapper {
   position: relative;
   z-index: 2;
@@ -450,7 +456,7 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: flex-end;
   text-align: right;
-  margin-top: -2px; /* Slight adjust biar sejajar sama teks kiri */
+  margin-top: -2px;
 }
 
 .table-label-clean {
@@ -480,7 +486,6 @@ onUnmounted(() => {
 .category-pill { padding: 8px 18px; border-radius: 20px; border: 1px solid #D4E4F4; background: #FFFFFF; color: #5A7A9A; font-size: 13px; font-weight: 500;white-space: nowrap; cursor: pointer; transition: all 0.2s ease; }
 .category-pill.active { background: rgba(46, 125, 214, 0.1); color: #2E7DD6; border-color: #2E7DD6; }
 
-
 /* Recomend Section*/
 .recommendation-section { margin-bottom: 32px;}
 .recommendation-grid { display: grid; grid-template-columns: repeat(2, 1fr);  gap: 20px 16px;}
@@ -494,9 +499,11 @@ onUnmounted(() => {
 .rec-info { display: flex; flex-direction: column; flex-grow: 1; }
 .rec-category { font-size: 10px; color: #8AAFCC; font-weight: 500; margin-bottom: 2px; }
 .rec-title {  font-size: 13px;  font-weight: 600; color: #1A2332;  margin: 0 0 6px 0;  line-height: 1.3;  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-wrap: break-word; }
-.rec-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto;}
 
-/* UKURAN FONT HARGA REKOMENDASI DIBESARKAN JADI 14px */
+/* Wrapper Footer tambahan untuk fleksibilitas susunan vertikal */
+.rec-footer-wrapper, .product-footer-wrapper { display: flex; flex-direction: column; gap: 4px; margin-top: auto; }
+.rec-footer { display: flex; justify-content: space-between; align-items: center; }
+
 .rec-price { font-weight: 700; color: #2E7DD6; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
 .rec-btn { width: 24px; height: 24px; font-size: 16px; }
 
@@ -509,19 +516,15 @@ onUnmounted(() => {
   border-bottom: 2px dashed #D4E4F4;
   margin: 12px 0 20px 0;
 }
-/* --- PERUBAHAN STYLE PEMBATAS KATEGORI, GARIS, DAN SPACER --- */
 .category-section { 
-  /* Dilepas padding bottom-nya karena digantikan block spacer */
   margin-bottom: 24px;
 }
 
-/* Bungkus agar teks kategori dan garis putus-putus berada di batas margin normal */
 .category-inner-header-container {
   padding: 0; 
   margin-bottom: 20px;
 }
 
-/* Flexbox Header Kategori (Teks Kiri & Jumlah Kanan) */
 .category-header-wrap {
   display: flex;
   justify-content: space-between;
@@ -542,25 +545,21 @@ onUnmounted(() => {
   color: #8AAFCC;
 }
 
-/* Garis Putus-putus (Hanya dari ujung huruf kiri ke huruf kanan) */
 .category-divider-line {
   border-bottom: 2px dashed #D4E4F4;
 }
 
-/* Kotak Persegi Panjang Pemisah Antar Kategori (Mentok Ujung ke Ujung Layar) */
 .category-block-spacer {
-  height: 10px; /* Ketebalan kotak pemisah */
-  background-color: #F3F4F6; /* Warna abu-abu soft kotak pembatas */
-  margin-left: -16px;  /* Menembus padding luar halaman kiri */
-  margin-right: -16px; /* Menembus padding luar halaman kanan */
+  height: 10px;
+  background-color: #F3F4F6;
+  margin-left: -16px;
+  margin-right: -16px;
   margin-top: 28px;
 }
 
-/* Menghilangkan kotak pemisah di paling bawah/kategori terakhir */
 .category-section:last-child .category-block-spacer {
   display: none;
 }
-
 
 /* Item Produk */
 .badge-bestseller { align-self: flex-start; background: #FEF3C7; color: #C4860A; border: 1px solid #FDE68A; padding: 2px 10px; font-size: 9px; font-weight: 700; border-radius: 999px; margin-bottom: 4px;}
@@ -575,14 +574,20 @@ onUnmounted(() => {
 .product-info { display: flex; flex-direction: column; flex-grow: 1; justify-content: center; }
 .product-title { font-size: 16px; font-weight: 600; color: #1A2332; margin: 0 0 4px 0; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-wrap: break-word; }
 .product-desc { font-size: 11px; color: #7A7A7A; margin-bottom: 8px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-wrap: break-word; }
-.product-footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; }
+.product-footer { display: flex; justify-content: space-between; align-items: center; }
 
-/* UKURAN FONT HARGA MENU UTAMA DIBESARKAN JADI 16px */
 .text-price { font-weight: 700; color: #2E7DD6; font-size: 16px; font-family: 'JetBrains Mono', monospace; }
-
 .text-soldout-price { font-weight: 600; color: #EF4444; font-size: 12px; }
 .btn-add-circle { width: 28px; height: 28px; background: #2E7DD6; color: #FFFFFF; border: none; border-radius: 50%; font-size: 18px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.1s ease; padding: 0;}
 .btn-add-circle:active { transform: scale(0.9); }
+
+/* TEXT INFORMASI SYARAT MINIMAL BELANJA (HIJAU POS KASIR) */
+.promo-requirement-text {
+  font-size: 10px;
+  color: #166534;
+  font-weight: 500;
+  margin-top: 2px;
+}
 
 /* Cart Mengambang */
 .floating-cart { position: fixed; bottom: 20px; left: 16px; right: 16px; max-width: 450px; margin: 0 auto; background: #2E7DD6; color: #FFFFFF; height: 25px; padding: 10px 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(26, 35, 50, 0.2); z-index: 100; cursor: pointer; animation: slideUp 0.3s ease forwards; }
