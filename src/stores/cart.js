@@ -6,44 +6,71 @@ export const useCartStore = defineStore('cart', {
     tableInfo: null,
     items: [],
     customerName: '', 
-    appliedDiscount: null, 
+    appliedDiscount: null, // Menyimpan object voucher global pilihan user
   }),
   getters: {
     totalItems: (state) => state.items.reduce((total, item) => total + item.qty, 0),
     
-    // 1. MODIFIKASI: totalPrice sekarang menghitung pakai harga promo jika produk memiliki promo dari backend
-    totalPrice: (state) => {
+    // PERBAIKAN TOTAL PRICE: Menghitung harga item secara dinamis
+    totalPrice(state) {
+      // Hitung subtotal murni berdasarkan harga asli dulu
+      const subtotalMurni = state.items.reduce((total, item) => total + (Number(item.price) * item.qty), 0);
+
       return state.items.reduce((total, item) => {
-        const currentPrice = item.is_promo ? Number(item.promo_price) : Number(item.price);
+        let currentPrice = Number(item.price);
+
+        // KONDISI 1: User TIDAK sedang pakai voucher global
+        if (!state.appliedDiscount) {
+          // Diskon produk aktif HANYA JIKA min_purchase = 0 ATAU subtotal murni memenuhi syarat produk tersebut
+          const lulusSyaratProduk = !item.min_purchase || Number(item.min_purchase) === 0 || subtotalMurni >= Number(item.min_purchase);
+          
+          if (item.is_promo && lulusSyaratProduk) {
+            currentPrice = Number(item.promo_price);
+          }
+        }
+        // KONDISI 2: User SEDANG pakai voucher global
+        // Jika voucher global dipilih, abaikan diskon produk otomatis (harga kembali normal)
+        
         return total + (currentPrice * item.qty);
       }, 0);
     },
 
-    // 2. TAMBAHAN: Menghitung total kehematan dari diskon coret otomatis untuk info nota di Vue
-    totalProductDiscount: (state) => {
+    // Menghitung kehematan dari diskon coret bawaan produk (Hanya tampil jika voucher global kosong)
+    totalProductDiscount(state) {
+      if (state.appliedDiscount) return 0; // Matikan info hemat produk jika beralih ke global
+
+      const subtotalMurni = state.items.reduce((total, item) => total + (Number(item.price) * item.qty), 0);
       return state.items.reduce((sum, item) => {
-        if (item.is_promo && item.discount_amount_per_item) {
+        const lulusSyaratProduk = !item.min_purchase || Number(item.min_purchase) === 0 || subtotalMurni >= Number(item.min_purchase);
+        if (item.is_promo && lulusSyaratProduk) {
           return sum + (Number(item.discount_amount_per_item) * item.qty);
         }
         return sum;
       }, 0);
     },
 
-    // 3. TAMBAHAN: Mendeteksi apakah di keranjang ada barang promo otomatis (untuk kunci voucher global nanti)
     hasProductWithDiscount: (state) => {
       return state.items.some(item => item.is_promo);
     },
 
-    // --- GETTER: Hitung Diskon Manual / Voucher Global ---
+    // HITUNG DISKON VOUCHER GLOBAL (Abaikan promo produk di sini)
     discountAmount(state) {
       if (!state.appliedDiscount) return 0;
 
       const discount = state.appliedDiscount;
-      let eligibleTotal = 0;
-      let eligibleQty = 0;
-
       const discountScope = discount.scope || 'global';
       const discountValue = Number(discount.value) || 0;
+
+      // Gunakan harga normal/asli produk sebagai basis DPP diskon global (karena promo produk di-override)
+      const baseSubtotalMurni = state.items.reduce((total, item) => total + (Number(item.price) * item.qty), 0);
+
+      // VALIDASI UTAMA: Jika total belanja harga normal tidak lolos min_purchase voucher global, diskon = 0
+      if (discount.min_purchase > 0 && baseSubtotalMurni < Number(discount.min_purchase)) {
+        return 0;
+      }
+
+      let eligibleTotal = 0;
+      let eligibleQty = 0;
 
       if (discountScope === 'products') {
         let allowedIds = [];
@@ -51,10 +78,7 @@ export const useCartStore = defineStore('cart', {
         else if (Array.isArray(discount.products)) allowedIds = discount.products.map(p => Number(p.id));
 
         const inScope = state.items.filter(item => allowedIds.includes(Number(item.product_id)));
-        eligibleTotal = inScope.reduce((sum, item) => {
-          const currentPrice = item.is_promo ? Number(item.promo_price) : Number(item.price);
-          return sum + (currentPrice * item.qty);
-        }, 0);
+        eligibleTotal = inScope.reduce((sum, item) => sum + (Number(item.price) * item.qty), 0);
         eligibleQty = inScope.reduce((sum, item) => sum + item.qty, 0);
 
       } else if (discountScope === 'categories') {
@@ -63,30 +87,26 @@ export const useCartStore = defineStore('cart', {
         else if (Array.isArray(discount.categories)) allowedCats = discount.categories.map(c => Number(c.id));
 
         const inScope = state.items.filter(item => allowedCats.includes(Number(item.category_id)));
-        eligibleTotal = inScope.reduce((sum, item) => {
-          const currentPrice = item.is_promo ? Number(item.promo_price) : Number(item.price);
-          return sum + (currentPrice * item.qty);
-        }, 0);
+        eligibleTotal = inScope.reduce((sum, item) => sum + (Number(item.price) * item.qty), 0);
         eligibleQty = inScope.reduce((sum, item) => sum + item.qty, 0);
 
       } else {
-        eligibleTotal = this.totalPrice; 
+        eligibleTotal = baseSubtotalMurni; 
         eligibleQty = this.totalItems;   
       }
 
       if (eligibleTotal <= 0) return 0;
 
       let finalDiscount = 0;
-      
       if (discount.type === 'percentage') {
         finalDiscount = eligibleTotal * (discountValue / 100);
         const maxVal = Number(discount.max_discount) || 0;
         if (maxVal > 0 && finalDiscount > maxVal) finalDiscount = maxVal;
       } else {
         if (discountScope === 'global') {
-             finalDiscount = discountValue;
+          finalDiscount = discountValue;
         } else {
-             finalDiscount = discountValue * eligibleQty;
+          finalDiscount = discountValue * eligibleQty;
         }
         finalDiscount = Math.min(finalDiscount, eligibleTotal);
       }
@@ -94,42 +114,40 @@ export const useCartStore = defineStore('cart', {
       return Math.round(finalDiscount);
     },
 
-    // --- GETTER: Grand Total ---
+    // GRAND TOTAL AKHIR
     grandTotal() {
-      return Math.max(0, this.totalPrice - this.discountAmount);
+      // Jika sedang pakai diskon voucher global, potong dari nilai murni base price item
+      if (this.appliedDiscount) {
+        const baseSubtotalMurni = this.items.reduce((total, item) => total + (Number(item.price) * item.qty), 0);
+        return Math.max(0, baseSubtotalMurni - this.discountAmount);
+      }
+      // Jika normal, langsung pakai kalkulasi totalPrice bawaan promo produk yang valid
+      return Math.max(0, this.totalPrice);
     }
   },
   actions: {
-    // Fungsi pembantu otomatis simpan data ke memori fisik lokal browser
     saveToLocalStorage() {
       localStorage.setItem('posqr_items_backup', JSON.stringify(this.items))
       localStorage.setItem('posqr_name_backup', this.customerName)
     },
-
-    // Memulihkan data belanjaan lama jika halaman dimuat ulang/back dari Midtrans
     loadFromLocalStorage() {
       const savedItems = localStorage.getItem('posqr_items_backup')
       const savedName = localStorage.getItem('posqr_name_backup')
       if (savedItems) {
         try { this.items = JSON.parse(savedItems) } catch (e) { console.error(e) }
       }
-      if (savedName) {
-        this.customerName = savedName
-      }
+      if (savedName) { this.customerName = savedName }
     },
-
     setTable(token, info) {
       this.tableToken = token
       this.tableInfo = info
     },
-
     applyDiscount(discountData) {
       this.appliedDiscount = discountData
     },
     removeDiscount() {
       this.appliedDiscount = null
     },
-
     addItem(product) {
       const productId = Number(product.id || product.product_id);
       const price = Number(product.price || product.pivot?.price || 0);
@@ -138,6 +156,8 @@ export const useCartStore = defineStore('cart', {
       const isPromo = product.is_promo || false;
       const promoPrice = product.promo_price ? Number(product.promo_price) : price;
       const discountAmountPerItem = product.discount_amount_per_item ? Number(product.discount_amount_per_item) : 0;
+      // Ambil min_purchase bawaan produk dari API menu backend
+      const minPurchase = product.min_purchase ? Number(product.min_purchase) : 0;
 
       const existingItem = this.items.find(item => Number(item.product_id) === productId);
       
@@ -152,10 +172,11 @@ export const useCartStore = defineStore('cart', {
           qty: 1,
           is_promo: isPromo,
           promo_price: promoPrice,
-          discount_amount_per_item: discountAmountPerItem
+          discount_amount_per_item: discountAmountPerItem,
+          min_purchase: minPurchase // <--- Simpan field ini ke object keranjang belanja
         })
       }
-      this.saveToLocalStorage() // <--- Simpan Perubahan
+      this.saveToLocalStorage()
     },
     removeItem(productId) {
       const index = this.items.findIndex(item => Number(item.product_id) === Number(productId))
@@ -166,13 +187,12 @@ export const useCartStore = defineStore('cart', {
           this.items.splice(index, 1)
         }
       }
-      this.saveToLocalStorage() // <--- Simpan Perubahan
+      this.saveToLocalStorage()
     },
     clearCart() {
       this.items = []
       this.customerName = ''
       this.appliedDiscount = null 
-      // Hapus data cadangan fisik karena transaksi selesai/dibersihkan secara sah
       localStorage.removeItem('posqr_items_backup')
       localStorage.removeItem('posqr_name_backup')
     }
