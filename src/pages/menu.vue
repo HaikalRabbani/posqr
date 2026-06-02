@@ -101,7 +101,13 @@ const fetchMenu = async () => {
     const token = route.params.token
     const response = await api.get(`/public/menu/${token}`)
     
-    products.value = response.data.products
+    // FIX FRONTEND: Lakukan mapping data produk agar properti min_purchase terbaca angka oleh "v-if"
+    const rawProducts = response.data.products || []
+    products.value = rawProducts.map(p => ({
+      ...p,
+      min_purchase: p.min_purchase ? Number(p.min_purchase) : 0
+    }))
+
     tableInfo.value = response.data.table
     cartStore.setTable(token, response.data.table)
 
