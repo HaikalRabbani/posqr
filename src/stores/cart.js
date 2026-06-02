@@ -11,9 +11,9 @@ export const useCartStore = defineStore('cart', {
   getters: {
     totalItems: (state) => state.items.reduce((total, item) => total + item.qty, 0),
     
-    // PERBAIKAN TOTAL PRICE: Menghitung harga item secara dinamis
+    // MENANGANI HARGA CORET VS HARGA NORMAL SECARA DINAMIS
     totalPrice(state) {
-      // Hitung subtotal murni berdasarkan harga asli dulu
+      // Hitung subtotal murni berdasarkan harga asli dulu sebagai basis pengecekan syarat
       const subtotalMurni = state.items.reduce((total, item) => total + (Number(item.price) * item.qty), 0);
 
       return state.items.reduce((total, item) => {
@@ -21,7 +21,7 @@ export const useCartStore = defineStore('cart', {
 
         // KONDISI 1: User TIDAK sedang pakai voucher global
         if (!state.appliedDiscount) {
-          // Diskon produk aktif HANYA JIKA min_purchase = 0 ATAU subtotal murni memenuhi syarat produk tersebut
+          // Diskon produk aktif HANYA JIKA min_purchase = 0 ATAU total belanja murni sudah lolos syarat min_purchase produk
           const lulusSyaratProduk = !item.min_purchase || Number(item.min_purchase) === 0 || subtotalMurni >= Number(item.min_purchase);
           
           if (item.is_promo && lulusSyaratProduk) {
@@ -29,7 +29,7 @@ export const useCartStore = defineStore('cart', {
           }
         }
         // KONDISI 2: User SEDANG pakai voucher global
-        // Jika voucher global dipilih, abaikan diskon produk otomatis (harga kembali normal)
+        // Jika voucher global dipilih, abaikan diskon produk otomatis (semua item kembali ke harga normal)
         
         return total + (currentPrice * item.qty);
       }, 0);
@@ -92,7 +92,7 @@ export const useCartStore = defineStore('cart', {
 
       } else {
         eligibleTotal = baseSubtotalMurni; 
-        eligibleQty = this.totalItems;   
+        eligibleQty = state.items.reduce((total, item) => total + item.qty, 0);   
       }
 
       if (eligibleTotal <= 0) return 0;
@@ -114,7 +114,7 @@ export const useCartStore = defineStore('cart', {
       return Math.round(finalDiscount);
     },
 
-    // GRAND TOTAL AKHIR
+    // GRAND TOTAL AKHIR YANG AKAN DITAMPILKAN DI NOTA
     grandTotal() {
       // Jika sedang pakai diskon voucher global, potong dari nilai murni base price item
       if (this.appliedDiscount) {
@@ -156,8 +156,7 @@ export const useCartStore = defineStore('cart', {
       const isPromo = product.is_promo || false;
       const promoPrice = product.promo_price ? Number(product.promo_price) : price;
       const discountAmountPerItem = product.discount_amount_per_item ? Number(product.discount_amount_per_item) : 0;
-      // Ambil min_purchase bawaan produk dari API menu backend
-      const minPurchase = product.min_purchase ? Number(product.min_purchase) : 0;
+      const minPurchase = product.min_purchase ? Number(product.min_purchase) : 0; // Ambil data min_purchase produk
 
       const existingItem = this.items.find(item => Number(item.product_id) === productId);
       
@@ -173,7 +172,7 @@ export const useCartStore = defineStore('cart', {
           is_promo: isPromo,
           promo_price: promoPrice,
           discount_amount_per_item: discountAmountPerItem,
-          min_purchase: minPurchase // <--- Simpan field ini ke object keranjang belanja
+          min_purchase: minPurchase // Amankan data field ke object item keranjang
         })
       }
       this.saveToLocalStorage()

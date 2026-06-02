@@ -41,41 +41,35 @@ const activeDiscount = computed(() => cartStore.appliedDiscount)
 const discountAmount = computed(() => cartStore.discountAmount)
 
 const isDiscountEligible = (d) => {
-  // 1. Cek syarat minimal belanja dulu
-  const meetMinPurchase = d.min_purchase === 0 || cartStore.totalPrice >= d.min_purchase;
+  // 1. FIX: Hitung subtotal murni (harga asli produk) sebagai basis validasi minimum purchase voucher global
+  const subtotalMurni = cartStore.items.reduce((total, item) => total + (Number(item.price) * item.qty), 0)
+  const meetMinPurchase = d.min_purchase === 0 || subtotalMurni >= d.min_purchase;
   if (!meetMinPurchase) return false;
 
-  // 2. Cek kecocokan produk/kategori di dalam keranjang
+  // 2. Cek kecocokan produk/kategori di dalam keranjang (Tetap biarkan kode bawaan lu)
   const scope = d.scope || 'global';
   
   if (scope === 'products') {
-    // Ambil array ID produk yang didiskon
     let allowedIds = [];
     if (Array.isArray(d.product_ids)) allowedIds = d.product_ids.map(Number);
     else if (Array.isArray(d.products)) allowedIds = d.products.map(p => Number(p.id));
-    
-    // Validasi: Apakah ada minimal 1 produk di keranjang yang cocok dengan ID promo?
     return cartStore.items.some(item => allowedIds.includes(Number(item.product_id)));
     
   } else if (scope === 'categories') {
-    // Ambil array ID kategori yang didiskon
     let allowedCats = [];
     if (Array.isArray(d.category_ids)) allowedCats = d.category_ids.map(Number);
     else if (Array.isArray(d.categories)) allowedCats = d.categories.map(c => Number(c.id));
-    
-    // Validasi: Apakah ada minimal 1 produk di keranjang yang kategorinya cocok dengan promo?
     return cartStore.items.some(item => allowedCats.includes(Number(item.category_id)));
   }
 
-  // 3. Jika scope-nya 'global', berarti otomatis valid (karena syarat min_purchase sudah lolos di atas)
   return true;
 }
 
 const selectDiscount = (discountItem) => {
   if (activeDiscount.value?.id === discountItem.id) {
-    cartStore.removeDiscount()
+    cartStore.removeDiscount() // Jika diklik ulang voucher yang sama, batalkan voucher global
   } else {
-    cartStore.applyDiscount(discountItem)
+    cartStore.applyDiscount(discountItem) // Jika diklik voucher baru, pasang voucher global & override promo produk
   }
   showDiscountModal.value = false
 }
@@ -211,14 +205,7 @@ const handleCheckout = async () => {
         <span v-if="nameError" class="error-text">Nama pelanggan wajib diisi sebelum memesan.</span>
       </div>
 
-      <div v-if="cartStore.hasProductWithDiscount" class="voucher-locked-alert">
-        <svg xmlns="http://www.w3.org/2000/svg" class="icon-alert" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <span>Voucher total belanja tidak bisa digunakan karena sudah ada menu yang otomatis mendapat harga promo.</span>
-      </div>
-
-      <div v-else class="voucher-section" @click="showDiscountModal = true">
+      <div class="voucher-section" @click="showDiscountModal = true">
         <div class="voucher-left">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/>
