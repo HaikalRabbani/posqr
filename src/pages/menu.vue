@@ -292,9 +292,6 @@ onUnmounted(() => {
                     <span>+</span>
                   </button>
                 </div>
-                <div v-if="product.stock > 0 && product.is_promo && product.min_purchase && Number(product.min_purchase) > 0" class="promo-requirement-text">
-                  *Min. order Rp{{ formatRupiah(product.min_purchase) }} untuk klaim harga diskon
-                </div>
               </div>
             </div>
           </div>
@@ -619,12 +616,12 @@ onUnmounted(() => {
 }
 
 /* Cart Mengambang */
-.floating-cart { position: fixed; bottom: 20px; left: 16px; right: 16px; max-width: 450px; margin: 0 auto; background: #2E7DD6; color: #FFFFFF; height: 25px; padding: 10px 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(26, 35, 50, 0.2); z-index: 100; cursor: pointer; animation: slideUp 0.3s ease forwards; }
+.floating-cart { position: fixed; bottom: 20px; left: 16px; right: 16px; max-width: 450px; margin: 0 auto; background: #2E7DD6; color: #FFFFFF; height: 30px; padding: 10px 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(26, 35, 50, 0.2); z-index: 100; cursor: pointer; animation: slideUp 0.3s ease forwards; }
 .cart-details { display: flex; align-items: center; }
 .cart-qty { font-size: 13px; color: #FFFFFF; font-weight: 200; }
 .cart-action { display: flex; align-items: center; gap: 12px; }
 .cart-price { font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 13px; }
-.btn-go-to-cart { background: #FFFFFF; color: #2E7DD6; border: none; border-radius: 50%; width: 20px; height: 20px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.btn-go-to-cart { background: #FFFFFF; color: #2E7DD6; border: none; border-radius: 50%; width: 30px; height: 30px; font-weight: 600; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .btn-go-to-cart:active { transform: scale(0.9); }
 
 /* Utilities */
