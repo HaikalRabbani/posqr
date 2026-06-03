@@ -293,7 +293,7 @@ onUnmounted(() => {
                   </button>
                 </div>
                 <div v-if="product.stock > 0 && product.is_promo && product.min_purchase && Number(product.min_purchase) > 0" class="promo-requirement-text">
-                  *Min. belanja Rp {{ formatRupiah(product.min_purchase) }} dapat diskon
+                  *Min. order Rp{{ formatRupiah(product.min_purchase) }} untuk klaim harga diskon
                 </div>
               </div>
             </div>
@@ -578,7 +578,7 @@ onUnmounted(() => {
 .product-image-wrap { position: relative; width: 90px; min-width: 90px; height: 90px; background-color: #EBF3FB; border-radius: 12px; overflow: hidden; }
 .product-image-wrap img { width: 100%; height: 100%; object-fit: cover; }
 .product-info { display: flex; flex-direction: column; flex-grow: 1; justify-content: center; }
-.product-title { font-size: 16px; font-weight: 600; color: #1A2332; margin: 0 0 4px 0; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-wrap: break-word; }
+.product-title { font-size: 16px; font-weight: 600; color: #1A2332; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-wrap: break-word; }
 .product-desc { font-size: 11px; color: #7A7A7A; margin-bottom: 8px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-wrap: break-word; }
 .product-footer { display: flex; justify-content: space-between; align-items: center; }
 
@@ -590,9 +590,10 @@ onUnmounted(() => {
 /* TEXT INFORMASI SYARAT MINIMAL BELANJA (HIJAU POS KASIR) */
 .promo-requirement-text {
   font-size: 10px;
-  color: #166534;
+  color: #5A7A9A;
+  font-style: italic;
   font-weight: 500;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 /* Cart Mengambang */

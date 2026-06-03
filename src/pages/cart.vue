@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cart.js'
 import api from '../services/api.js'
@@ -22,7 +22,20 @@ const fetchTaxesAndDiscounts = async () => {
       api.get('/public/discounts')
     ])
     availableTaxes.value = (taxRes.data.data || taxRes.data).filter(t => t.active)
-    availableDiscounts.value = (discRes.data.data || discRes.data)
+    
+    let discountsData = (discRes.data.data || discRes.data)
+
+    // urutkan dari nilai value diskon terbesar ke terkecil
+    discountsData.sort((a, b) => Number(b.value) - Number(a.value))
+
+    availableDiscounts.value = discountsData
+
+    // Sekarang, .find() pasti bakal nemu diskon murni yang nilainya paling gede dan eligible!
+    const autoSelect = discountsData.find(d => isDiscountEligible(d))
+    
+    if (autoSelect && !cartStore.appliedDiscount) {
+      cartStore.applyDiscount(autoSelect)
+    }
   } catch (error) {
     console.error('Gagal memuat data:', error)
   }
@@ -33,6 +46,19 @@ onMounted(() => {
   cartStore.loadFromLocalStorage()
   fetchTaxesAndDiscounts() 
 })
+
+watch(
+  () => cartStore.items, 
+  () => {
+    if (availableDiscounts.value.length > 0) {
+      // Jika voucher yang lagi aktif tiba-tiba jadi GA lolos syarat, langsung lepas.
+      if (cartStore.appliedDiscount && !isDiscountEligible(cartStore.appliedDiscount)) {
+        cartStore.removeDiscount()
+      }
+    }
+  }, 
+  { deep: true }
+)
 
 // --- LOGIKA DISKON (SUDAH DI-SINKRONKAN KE PINIA) ---
 const activeDiscount = computed(() => cartStore.appliedDiscount)
@@ -235,11 +261,6 @@ const handleCheckout = async () => {
         <span class="mono-value">Rp {{ formatRupiah(cartStore.totalPrice) }}</span>
       </div>
 
-      <div v-if="cartStore.totalProductDiscount > 0" class="summary-row">
-        <span class="muted-label" style="color: #10B981; font-weight: 600;">Hemat (Promo Menu)</span>
-        <span class="mono-value" style="color: #10B981;">- Rp {{ formatRupiah(cartStore.totalProductDiscount) }}</span>
-      </div>
-
       <div v-if="discountAmount > 0" class="summary-row">
         <span class="muted-label">Diskon ({{ activeDiscount?.name }})</span>
         <span class="mono-value diskon-text">- Rp {{ formatRupiah(discountAmount) }}</span>
@@ -335,6 +356,13 @@ const handleCheckout = async () => {
 /* Summary Card */
 .summary-card { background: #EBF3FB; padding: 20px; border-radius: 12px; border: 1px solid #D4E4F4; }
 .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+/* Batasi lebar label diskon agar tidak merusak harga */
+.summary-row .muted-label {
+  max-width: 65%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .muted-label { color: #5A7A9A; }
 .mono-value { font-family: 'JetBrains Mono', monospace; font-weight: 500; }
 .diskon-text { color: #DC2626; font-weight: 700; }
