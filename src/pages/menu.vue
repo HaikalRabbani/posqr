@@ -496,6 +496,29 @@ onUnmounted(() => {
 .recommendation-section { margin-bottom: 32px;}
 .recommendation-grid { display: grid; grid-template-columns: repeat(2, 1fr);  gap: 20px 16px;}
 .recommendation-item { display: flex; flex-direction: column; gap: 6px; }
+/* --- TWEAK UKURAN FONT REKOMENDASI GRID --- */
+
+/* Gedein judul menu di dalam grid rekomendasi */
+.recommendation-item .rec-title {
+  font-size: 15px !important; /* Naikin dari 13px ke 15px biar tegas */
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 3px !important; /* Jarak rapat presisi ke bawah (deskripsi/harga) */
+}
+
+/* Gedein teks kategori kecil yang ada di atas judul rekomendasi (opsional biar imbang) */
+.recommendation-item .rec-category {
+  font-size: 11px !important; /* Naikin dikit dari 10px */
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+/* Atur jarak margin sub-info diskon biar ga tabrakan */
+.recommendation-item .promo-requirement-text {
+  font-size: 10px;
+  line-height: 1.2;
+  margin-top: 2px !important;
+}
 .recommendation-item.out-of-stock { pointer-events: none; }
 .recommendation-item.out-of-stock .rec-image-wrap img,
 .recommendation-item.out-of-stock .rec-title { opacity: 0.4; }
