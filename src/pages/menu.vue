@@ -272,7 +272,7 @@ onUnmounted(() => {
             
             <div class="rec-info">
               <span class="rec-category">{{ product.category?.name || 'Tanpa Kategori' }}</span>
-              <h3 class="rec-title">{{ product.name }}</h3>
+              <p class="rec-title">{{ product.name }}</p>
               <div class="rec-footer-wrapper">
                 <div class="rec-footer">
                   <template v-if="product.stock > 0">
@@ -334,7 +334,7 @@ onUnmounted(() => {
                   ★ Best Seller
                 </div>
                 
-                <h3 class="product-title">{{ product.name }}</h3>
+                <p class="product-title">{{ product.name }}</p>
                 <p v-if="product.description" class="product-desc">{{ product.description }}</p>
                 
                 <div class="product-footer-wrapper">
@@ -577,9 +577,9 @@ onUnmounted(() => {
 .product-item.out-of-stock .product-desc { opacity: 0.4; }
 .product-image-wrap { position: relative; width: 90px; min-width: 90px; height: 90px; background-color: #EBF3FB; border-radius: 12px; overflow: hidden; }
 .product-image-wrap img { width: 100%; height: 100%; object-fit: cover; }
-.product-info { display: flex; flex-direction: column; flex-grow: 1; justify-content: center; }
-.product-title { font-size: 16px; font-weight: 600; color: #1A2332; margin: 0 0 4px 0; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-wrap: break-word; }
-.product-desc { font-size: 11px; color: #7A7A7A; margin-bottom: 8px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-wrap: break-word; }
+.product-info { display: flex; flex-direction: column; flex-grow: 1; justify-content: flex-start; padding-top: 2px; }
+.product-title {   font-size: 16px;   font-weight: 600;   color: #1A2332;   margin: 0;  margin-bottom: 2px; line-height: 1.3;   display: -webkit-box;   -webkit-line-clamp: 2;   line-clamp: 2;   -webkit-box-orient: vertical;   overflow: hidden;  word-wrap: break-word; }
+.product-desc { font-size: 11px; color: #7A7A7A; margin: 0; margin-bottom: 8px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2;   line-clamp: 2;   -webkit-box-orient: vertical;   overflow: hidden; word-wrap: break-word; }
 .product-footer { display: flex; justify-content: space-between; align-items: center; }
 
 .text-price { font-weight: 700; color: #2E7DD6; font-size: 16px; font-family: 'JetBrains Mono', monospace; }
@@ -587,7 +587,6 @@ onUnmounted(() => {
 .btn-add-circle { width: 28px; height: 28px; background: #2E7DD6; color: #FFFFFF; border: none; border-radius: 50%; font-size: 18px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.1s ease; padding: 0;}
 .btn-add-circle:active { transform: scale(0.9); }
 
-/* TEXT INFORMASI SYARAT MINIMAL BELANJA (HIJAU POS KASIR) */
 .promo-requirement-text {
   font-size: 10px;
   color: #5A7A9A;
