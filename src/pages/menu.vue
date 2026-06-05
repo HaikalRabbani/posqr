@@ -22,6 +22,22 @@ const showToast = ref(false)
 const toastMessage = ref('')
 let toastTimer = null
 
+const showModal = ref(false)
+const selectedProduct = ref(null)
+
+const openModal = (product) => {
+  selectedProduct.value = product
+  showModal.value = true
+}
+
+const closeModal = () => {
+  showModal.value = false
+  // Jeda sedikit sebelum reset data agar animasi tutup modal lebih mulus
+  setTimeout(() => {
+    selectedProduct.value = null
+  }, 300)
+}
+
 const handleAddToCart = (product) => {
   cartStore.addItem(product)
   
@@ -262,6 +278,7 @@ onUnmounted(() => {
             :key="'rec-' + product.id"
             class="recommendation-item"
             :class="{ 'out-of-stock': product.stock <= 0 }"
+            @click="openModal(product)"
           >
             <div class="rec-image-wrap">
               <div v-if="product.is_best_seller" class="rec-badge-floating">
@@ -321,6 +338,7 @@ onUnmounted(() => {
               :key="product.id" 
               class="product-item"
               :class="{ 'out-of-stock': product.stock <= 0 }"
+              @click="openModal(product)"
             >
               <div class="product-image-wrap">
                 <img :src="getImageUrl(product.image)" :alt="product.name" @error="onImageError" loading="lazy" />
@@ -376,6 +394,56 @@ onUnmounted(() => {
       </div>
     </div>
 
+    <div class="modal-overlay" :class="{ 'show': showModal }" @click.self="closeModal">
+      <div class="bottom-sheet" :class="{ 'show': showModal }">
+        <div class="sheet-drag-handle" @click="closeModal">
+          <div class="drag-bar"></div>
+        </div>
+        
+        <div v-if="selectedProduct" class="sheet-content">
+          <div class="sheet-image-wrap">
+            <div v-if="selectedProduct.is_best_seller" class="sheet-badge">★ Best Seller</div>
+            <img :src="getImageUrl(selectedProduct.image)" :alt="selectedProduct.name" @error="onImageError" />
+          </div>
+          
+          <div class="sheet-body">
+            <span class="sheet-category">{{ selectedProduct.category?.name || 'Tanpa Kategori' }}</span>
+            <h2 class="sheet-title">{{ selectedProduct.name }}</h2>
+            
+            <div class="sheet-price-row">
+              <template v-if="selectedProduct.stock > 0">
+                <div v-if="selectedProduct.is_promo && (!selectedProduct.min_purchase || Number(selectedProduct.min_purchase) === 0)" style="display: flex; align-items: baseline; gap: 8px;">
+                  <span class="sheet-price">Rp {{ formatRupiah(selectedProduct.promo_price) }}</span>
+                  <span class="sheet-price-coret">Rp {{ formatRupiah(selectedProduct.price) }}</span>
+                </div>
+                <span v-else class="sheet-price">Rp {{ formatRupiah(selectedProduct.price) }}</span>
+              </template>
+              <span v-else class="text-soldout-price" style="font-size: 16px;">Habis Terjual</span>
+            </div>
+
+            <div v-if="selectedProduct.stock > 0 && selectedProduct.is_promo && selectedProduct.min_purchase && Number(selectedProduct.min_purchase) > 0" class="sheet-promo-req">
+              *Min. belanja Rp {{ formatRupiah(selectedProduct.min_purchase) }} dapat harga diskon
+            </div>
+            
+            <div class="sheet-desc-container">
+              <h3 class="sheet-desc-title">Deskripsi</h3>
+              <p class="sheet-desc-text">{{ selectedProduct.description || 'Tidak ada deskripsi untuk menu ini.' }}</p>
+            </div>
+          </div>
+          
+          <div class="sheet-footer">
+            <button 
+              class="btn-add-to-cart-large" 
+              :disabled="selectedProduct.stock <= 0"
+              @click="handleAddToCart(selectedProduct); closeModal()"
+            >
+              <span v-if="selectedProduct.stock > 0">Tambah ke Keranjang</span>
+              <span v-else>Stok Habis</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="bottom-spacer"></div>
   </div>
 </template>
@@ -516,7 +584,6 @@ onUnmounted(() => {
   line-height: 1.2;
   margin-top: 2px !important;
 }
-.recommendation-item.out-of-stock { pointer-events: none; }
 .recommendation-item.out-of-stock .rec-image-wrap img,
 .recommendation-item.out-of-stock .rec-title { opacity: 0.4; }
 .rec-image-wrap { position: relative;  width: 100%; aspect-ratio: 1 / 1; background-color: #EBF3FB; border-radius: 12px; overflow: hidden; }
@@ -629,4 +696,37 @@ onUnmounted(() => {
 .loader { border: 3px solid #EBF3FB; border-top: 3px solid #2E7DD6; border-radius: 50%; width: 34px; height: 34px; animation: spin 1s linear infinite; margin-bottom: 16px; }
 @keyframes spin { 100% { transform: rotate(360deg); } }
 .error-box { background: #fff1f0; border: 1px solid #ffa39e; border-radius: 12px; padding: 20px; color: #cf1322; width: 100%; }
+
+/* --- STYLE MODAL DETAIL PRODUK (BOTTOM SHEET) --- */
+.modal-overlay { position: fixed; inset: 0; background: rgba(26, 35, 50, 0.6); z-index: 1000; display: flex; flex-direction: column; justify-content: flex-end; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+.modal-overlay.show { opacity: 1; pointer-events: auto; }
+
+.bottom-sheet { background: #FFFFFF; width: 100%; border-radius: 24px 24px 0 0; max-height: 90vh; display: flex; flex-direction: column; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1); box-shadow: 0 -4px 20px rgba(0,0,0,0.15); }
+.bottom-sheet.show { transform: translateY(0); }
+
+.sheet-drag-handle { padding: 16px; display: flex; justify-content: center; cursor: pointer; }
+.drag-bar { width: 40px; height: 5px; background: #D4E4F4; border-radius: 10px; }
+
+.sheet-content { display: flex; flex-direction: column; overflow-y: auto; padding-bottom: 24px; }
+.sheet-image-wrap { position: relative; width: 100%; aspect-ratio: 16/10; background: #EBF3FB; max-height: 220px; }
+.sheet-image-wrap img { width: 100%; height: 100%; object-fit: cover; }
+.sheet-badge { position: absolute; top: 16px; left: 16px; background: #FEF3C7; color: #C4860A; border: 1px solid #FDE68A; padding: 4px 12px; font-size: 11px; font-weight: 700; border-radius: 999px; }
+
+.sheet-body { padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+.sheet-category { font-size: 12px; color: #8AAFCC; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.sheet-title { font-size: 22px; font-weight: 700; color: #1A2332; margin: 0; line-height: 1.3; }
+
+.sheet-price-row { margin-top: 4px; margin-bottom: 8px; }
+.sheet-price { font-size: 20px; font-weight: 700; color: #2E7DD6; font-family: 'JetBrains Mono', monospace; }
+.sheet-price-coret { font-size: 14px; color: #8AAFCC; text-decoration: line-through; }
+.sheet-promo-req { font-size: 11px; color: #5A7A9A; font-style: italic; background: #F3F8FD; padding: 8px 12px; border-radius: 8px; border-left: 3px solid #2E7DD6; }
+
+.sheet-desc-container { margin-top: 16px; border-top: 1px solid #F3F4F6; padding-top: 16px; }
+.sheet-desc-title { font-size: 14px; font-weight: 600; color: #1A2332; margin-bottom: 8px; }
+.sheet-desc-text { font-size: 13px; color: #5A7A9A; line-height: 1.6; white-space: pre-line; margin: 0; }
+
+.sheet-footer { padding: 16px 20px; border-top: 1px solid #F3F4F6; background: #FFFFFF; position: sticky; bottom: 0; }
+.btn-add-to-cart-large { width: 100%; padding: 14px; background: #2E7DD6; color: #FFFFFF; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s; display: flex; justify-content: center; align-items: center; }
+.btn-add-to-cart-large:disabled { background: #D4E4F4; color: #8AAFCC; cursor: not-allowed; }
+.btn-add-to-cart-large:active:not(:disabled) { background: #1B4F8A; }
 </style>
