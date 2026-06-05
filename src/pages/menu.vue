@@ -106,7 +106,7 @@ const groupedProducts = computed(() => {
 
 // --- TAMBAHAN UNTUK REKOMENDASI (Maksimal 6 Produk untuk Grid 2x3) ---
 const recommendedProducts = computed(() => {
-  return products.value.filter(p => p.is_best_seller).slice(0, 6)
+  return products.value.filter(p => p.is_best_seller).slice(0, 4)
 })
 
 const formatRupiah = (angka) => {
