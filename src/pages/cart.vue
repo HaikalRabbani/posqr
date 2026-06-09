@@ -152,7 +152,8 @@ const handleCheckout = async () => {
       payment_method: paymentMethod.value,
       tax_amount: totalTaxAmount.value,
       tax_breakdown: taxBreakdown.value,
-      discount_id: activeDiscount.value?.id || null, // Ambil ID dari store
+      discount_id: activeDiscount.value?.id || null,
+      previous_order_id: localStorage.getItem('posqr_last_order_id') || null,
       items: cartStore.items.map(item => ({
         product_id: item.product_id,
         qty: item.qty,
@@ -166,11 +167,11 @@ const handleCheckout = async () => {
     const orderId = response.data?.data?.order?.id || response.data?.order?.id || response.data?.data?.id || response.data?.id
     
     if (paymentMethod.value === 'midtrans' && paymentUrl) {
-      // FIX UTAMA: Jangan panggil clearCart() dulu untuk Midtrans!
-      // Biarkan data tetap aman di RAM dan LocalStorage buat jaga-jaga kalau user menekan tombol back
+      if (orderId) {
+        localStorage.setItem('posqr_last_order_id', orderId)
+      }
       window.location.href = paymentUrl 
     } else {
-      // Jika bayar di kasir (Cash), datanya aman untuk dihapus langsung saat itu juga
       cartStore.clearCart()
       if (orderId) {
         router.push(`/status/${orderId}`)

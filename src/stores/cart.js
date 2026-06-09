@@ -194,6 +194,7 @@ export const useCartStore = defineStore('cart', {
       this.appliedDiscount = null 
       localStorage.removeItem('posqr_items_backup')
       localStorage.removeItem('posqr_name_backup')
+      localStorage.removeItem('posqr_last_order_id')
     }
   }
 })
