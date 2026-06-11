@@ -31,12 +31,13 @@ let touchStartY = 0
 const openModal = (product) => {
   selectedProduct.value = product
   showModal.value = true
+  document.body.style.overflow = 'hidden'
 }
 
 const closeModal = () => {
   showModal.value = false
-  sheetTransform.value = 0 // Reset posisi transform
-  // Jeda sedikit sebelum reset data agar animasi tutup modal lebih mulus
+  sheetTransform.value = 0
+  document.body.style.overflow = ''
   setTimeout(() => {
     selectedProduct.value = null
   }, 300)
@@ -242,6 +243,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('scroll', onScroll)
+  document.body.style.overflow = ''
 })
 </script>
 
