@@ -164,20 +164,28 @@ const handleCheckout = async () => {
 
     const response = await api.post('/public/order', payload)
     const paymentUrl = response.data?.data?.redirect_url || response.data?.payment_url
+    const qrUrl = response.data?.data?.qr_url
+    const expiryTime = response.data?.data?.expiry_time
     const orderId = response.data?.data?.order?.id || response.data?.order?.id || response.data?.data?.id || response.data?.id
-    
-    if (paymentMethod.value === 'midtrans' && paymentUrl) {
+
+    if (paymentMethod.value === 'qris' && qrUrl) {
       if (orderId) {
         localStorage.setItem('posqr_last_order_id', orderId)
+        localStorage.setItem(`payment_method_${orderId}`, 'qris')
       }
-      window.location.href = paymentUrl 
+      cartStore.clearCart()
+      router.push({ name: 'payment', params: { id: orderId }, query: { qr: qrUrl, expiry: expiryTime } })
+    } else if (paymentMethod.value === 'qris' && paymentUrl) {
+      // fallback kalau backend masih balikin redirect_url (belum sempat dipatch)
+      if (orderId) localStorage.setItem('posqr_last_order_id', orderId)
+      window.location.href = paymentUrl
     } else {
       cartStore.clearCart()
       if (orderId) {
         router.push(`/status/${orderId}`)
       } else {
         alert('Pesanan berhasil dikirim ke dapur!')
-        router.push('/') 
+        router.push('/')
       }
     }
   } catch (err) {
@@ -251,7 +259,7 @@ const handleCheckout = async () => {
         <label>Metode Pembayaran</label>
         <div class="payment-options">
           <div class="pay-pill" :class="{ active: paymentMethod === 'cash' }" @click="paymentMethod = 'cash'">Bayar di Kasir</div>
-          <div class="pay-pill" :class="{ active: paymentMethod === 'midtrans' }" @click="paymentMethod = 'midtrans'">Online (QRIS)</div>
+          <div class="pay-pill" :class="{ active: paymentMethod === 'qris' }" @click="paymentMethod = 'qris'">Online (QRIS)</div>
         </div>
       </div>
     </div>

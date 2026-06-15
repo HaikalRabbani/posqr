@@ -76,7 +76,7 @@ const activePaymentMethod = computed(() => {
     return localMethod.toLowerCase()
   }
   
-  return 'midtrans' // Default jaga-jaga
+  return 'qris' // Default jaga-jaga
 })
 // --------------------------------------------------------------------
 
