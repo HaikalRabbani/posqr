@@ -258,8 +258,8 @@ const handleCheckout = async () => {
       <div class="form-group">
         <label>Metode Pembayaran</label>
         <div class="payment-options">
-          <div class="pay-pill" :class="{ active: paymentMethod === 'cash' }" @click="paymentMethod = 'cash'">Bayar di Kasir</div>
-          <div class="pay-pill" :class="{ active: paymentMethod === 'qris' }" @click="paymentMethod = 'qris'">Online (QRIS)</div>
+          <div class="pay-pill" :class="{ active: paymentMethod === 'cash' }" @click="paymentMethod = 'cash'">Cash</div>
+          <div class="pay-pill" :class="{ active: paymentMethod === 'qris' }" @click="paymentMethod = 'qris'">QRIS</div>
         </div>
       </div>
     </div>
