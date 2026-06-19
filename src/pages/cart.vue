@@ -143,18 +143,6 @@ const handleCheckout = async () => {
 
   if (!cartStore.tableInfo) return alert('Data meja tidak ditemukan. Silakan scan ulang.')
 
-  if (paymentMethod.value === 'cash') {
-    const isConfirmed = confirm(
-      "Anda memilih pembayaran Cash.\n\n" +
-      "1. Silakan langsung bayar di meja kasir.\n" +
-      "2. Metode pembayaran TIDAK BISA DIUBAH setelah pesanan dibuat.\n\n" +
-      "Lanjutkan pesanan?"
-    );
-    
-    // Kalau user klik "Cancel", hentikan proses checkout
-    if (!isConfirmed) return;
-  }
-
   isSubmitting.value = true
   try {
     const payload = {

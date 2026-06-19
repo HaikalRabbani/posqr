@@ -114,7 +114,6 @@ export const useCartStore = defineStore('cart', {
       return Math.round(finalDiscount);
     },
 
-    // GRAND TOTAL AKHIR YANG AKAN DITAMPILKAN DI NOTA
     grandTotal() {
       // Jika sedang pakai diskon voucher global, potong dari nilai murni base price item
       if (this.appliedDiscount) {
@@ -172,7 +171,7 @@ export const useCartStore = defineStore('cart', {
           is_promo: isPromo,
           promo_price: promoPrice,
           discount_amount_per_item: discountAmountPerItem,
-          min_purchase: minPurchase // Amankan data field ke object item keranjang
+          min_purchase: minPurchase 
         })
       }
       this.saveToLocalStorage()
