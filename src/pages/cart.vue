@@ -7,6 +7,14 @@ import api from '../services/api.js'
 const router = useRouter()
 const cartStore = useCartStore()
 
+const goBackToMenu = () => {
+  if (cartStore.tableToken) {
+    router.push(`/menu/${cartStore.tableToken}`)
+  } else {
+    router.push('/') // Fallback kalau token gak ada (mis. /cart diakses langsung)
+  }
+}
+
 const paymentMethod = ref('cash') 
 const isSubmitting = ref(false)
 const showDiscountModal = ref(false) 
@@ -172,7 +180,7 @@ const handleCheckout = async () => {
 
 <template>
   <div class="page-wrapper">
-    <div class="back-nav" @click="router.back()">
+    <div class="back-nav" @click="goBackToMenu">
       <span>← Kembali ke Menu</span>
     </div>
 
