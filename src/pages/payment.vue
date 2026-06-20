@@ -11,6 +11,7 @@ const expiryTime = ref(route.query.expiry || '')
 const isExpired = ref(false)
 const remaining = ref(0)
 const isChecking = ref(false)
+const isDownloading = ref(false)
 
 let countdownInterval = null
 let pollingInterval = null
@@ -24,7 +25,7 @@ const formatTime = (secs) => {
 
 const startCountdown = () => {
   if (!expiryTime.value) return
-  const target = new Date(expiryTime.value.replace(' ', 'T') + '+07:00').getTime()
+  const target = new Date(expiryTime.value.replace(' ', 'T')).getTime()
 
   const tick = () => {
     const now = Date.now()
@@ -83,6 +84,26 @@ const goBackToCart = () => {
   router.push('/cart')
 }
 
+const downloadQRCode = async () => {
+  if (!qrUrl.value) return
+  isDownloading.value = true
+  try {
+    const response = await fetch(qrUrl.value)
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `QR-Pembayaran-${route.params.id}.png`
+    link.click()
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Gagal mengunduh QR:', error)
+    alert('Gagal mengunduh QR code. Silakan coba lagi.')
+  } finally {
+    isDownloading.value = false
+  }
+}
+
 onMounted(() => {
   if (!qrUrl.value) {
     // QR ga ada, lempar balik ke cart
@@ -117,6 +138,13 @@ onUnmounted(() => {
       <p class="instruction">
         Buka aplikasi e-wallet (GoPay, OVO, Dana, dll) lalu scan QR di atas untuk menyelesaikan pembayaran.
       </p>
+
+      <button class="btn-download-qr" :disabled="isDownloading" @click="downloadQRCode">
+        <svg v-if="!isDownloading" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+        </svg>
+        {{ isDownloading ? 'Mengunduh...' : 'Unduh QR Code' }}
+      </button>
 
       <div class="status-pill">
         <span class="dot"></span>
@@ -203,6 +231,29 @@ onUnmounted(() => {
 .timer-value { font-family: 'JetBrains Mono', monospace; font-size: 30px; font-weight: 700; color: #2E7DD6; line-height: 1.3; transition: color 0.3s; }
 
 .instruction { margin-top: 18px; font-size: 13px; color: #5A7A9A; text-align: center; line-height: 1.6; max-width: 280px; }
+
+.btn-download-qr {
+  width: 100%;
+  max-width: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #FFFFFF;
+  color: #2E7DD6;
+  border: 2px solid #2E7DD6;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  transition: background 0.2s, color 0.2s;
+  margin-top: 16px;
+}
+.btn-download-qr:hover { background: #EBF3FB; }
+.btn-download-qr:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-download-qr:active:not(:disabled) { transform: scale(0.97); }
 
 .status-pill {
   margin-top: 16px;

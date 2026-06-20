@@ -122,7 +122,9 @@ const formatRupiah = (angka) => {
 const getImageUrl = (imagePath) => {
   if (!imagePath) return 'https://placehold.co/400x400/EBF3FB/8AAFCC?text=No+Image'
   if (imagePath.startsWith('http')) return imagePath
-  return `https://api.etres.my.id/storage/${imagePath}`
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://api.etres.my.id/api/v1'
+  const storageUrl = baseUrl.replace('/api/v1', '/storage')
+  return `${storageUrl}/${imagePath}`
 }
 
 const onImageError = (event) => {
@@ -247,6 +249,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('scroll', onScroll)
+  if (toastTimer) clearTimeout(toastTimer)
   document.body.style.overflow = ''
 })
 </script>

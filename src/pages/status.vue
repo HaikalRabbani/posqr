@@ -121,11 +121,9 @@ onMounted(() => {
   const orderId = route.params.id
   echo.channel(`customer-order.${orderId}`)
     .listen('.PaymentPaid', (e) => {
-      console.log('Sinyal Realtime: Pesanan Lunas!', e)
       fetchOrderStatus()
     })
     .listen('.OrderUpdated', (e) => {
-      console.log('Sinyal Realtime: Pesanan Diubah Kasir!', e)
       fetchOrderStatus()
     })
 })

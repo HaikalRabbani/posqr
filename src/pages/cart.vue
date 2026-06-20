@@ -60,36 +60,9 @@ watch(
   { deep: true }
 )
 
-// --- LOGIKA DISKON (SUDAH DI-SINKRONKAN KE PINIA) ---
 const activeDiscount = computed(() => cartStore.appliedDiscount)
-
-// FIX BESAR: Panggil langsung dari cartStore, jangan hitung ulang!
 const discountAmount = computed(() => cartStore.discountAmount)
-
-const isDiscountEligible = (d) => {
-  // 1. FIX: Hitung subtotal murni (harga asli produk) sebagai basis validasi minimum purchase voucher global
-  const subtotalMurni = cartStore.items.reduce((total, item) => total + (Number(item.price) * item.qty), 0)
-  const meetMinPurchase = d.min_purchase === 0 || subtotalMurni >= d.min_purchase;
-  if (!meetMinPurchase) return false;
-
-  // 2. Cek kecocokan produk/kategori di dalam keranjang (Tetap biarkan kode bawaan lu)
-  const scope = d.scope || 'global';
-  
-  if (scope === 'products') {
-    let allowedIds = [];
-    if (Array.isArray(d.product_ids)) allowedIds = d.product_ids.map(Number);
-    else if (Array.isArray(d.products)) allowedIds = d.products.map(p => Number(p.id));
-    return cartStore.items.some(item => allowedIds.includes(Number(item.product_id)));
-    
-  } else if (scope === 'categories') {
-    let allowedCats = [];
-    if (Array.isArray(d.category_ids)) allowedCats = d.category_ids.map(Number);
-    else if (Array.isArray(d.categories)) allowedCats = d.categories.map(c => Number(c.id));
-    return cartStore.items.some(item => allowedCats.includes(Number(item.category_id)));
-  }
-
-  return true;
-}
+const isDiscountEligible = (d) => cartStore.isDiscountEligible(d)
 
 const selectDiscount = (discountItem) => {
   if (activeDiscount.value?.id === discountItem.id) {
@@ -176,8 +149,11 @@ const handleCheckout = async () => {
       cartStore.clearCart()
       router.push({ name: 'payment', params: { id: orderId }, query: { qr: qrUrl, expiry: expiryTime } })
     } else if (paymentMethod.value === 'qris' && paymentUrl) {
-      // fallback kalau backend masih balikin redirect_url (belum sempat dipatch)
-      if (orderId) localStorage.setItem('posqr_last_order_id', orderId)
+      if (orderId) {
+        localStorage.setItem('posqr_last_order_id', orderId)
+        localStorage.setItem(`payment_method_${orderId}`, 'qris')
+      }
+      cartStore.clearCart()
       window.location.href = paymentUrl
     } else {
       cartStore.clearCart()

@@ -35,24 +35,6 @@ export const useCartStore = defineStore('cart', {
       }, 0);
     },
 
-    // Menghitung kehematan dari diskon coret bawaan produk (Hanya tampil jika voucher global kosong)
-    totalProductDiscount(state) {
-      if (state.appliedDiscount) return 0; // Matikan info hemat produk jika beralih ke global
-
-      const subtotalMurni = state.items.reduce((total, item) => total + (Number(item.price) * item.qty), 0);
-      return state.items.reduce((sum, item) => {
-        const lulusSyaratProduk = !item.min_purchase || Number(item.min_purchase) === 0 || subtotalMurni >= Number(item.min_purchase);
-        if (item.is_promo && lulusSyaratProduk) {
-          return sum + (Number(item.discount_amount_per_item) * item.qty);
-        }
-        return sum;
-      }, 0);
-    },
-
-    hasProductWithDiscount: (state) => {
-      return state.items.some(item => item.is_promo);
-    },
-
     // HITUNG DISKON VOUCHER GLOBAL (Abaikan promo produk di sini)
     discountAmount(state) {
       if (!state.appliedDiscount) return 0;
@@ -122,6 +104,29 @@ export const useCartStore = defineStore('cart', {
       }
       // Jika normal, langsung pakai kalkulasi totalPrice bawaan promo produk yang valid
       return Math.max(0, this.totalPrice);
+    },
+
+    isDiscountEligible: (state) => (discount) => {
+      const subtotalMurni = state.items.reduce((total, item) => total + (Number(item.price) * item.qty), 0);
+      const meetMinPurchase = discount.min_purchase === 0 || subtotalMurni >= discount.min_purchase;
+      if (!meetMinPurchase) return false;
+
+      const scope = discount.scope || 'global';
+      
+      if (scope === 'products') {
+        let allowedIds = [];
+        if (Array.isArray(discount.product_ids)) allowedIds = discount.product_ids.map(Number);
+        else if (Array.isArray(discount.products)) allowedIds = discount.products.map(p => Number(p.id));
+        return state.items.some(item => allowedIds.includes(Number(item.product_id)));
+        
+      } else if (scope === 'categories') {
+        let allowedCats = [];
+        if (Array.isArray(discount.category_ids)) allowedCats = discount.category_ids.map(Number);
+        else if (Array.isArray(discount.categories)) allowedCats = discount.categories.map(c => Number(c.id));
+        return state.items.some(item => allowedCats.includes(Number(item.category_id)));
+      }
+
+      return true;
     }
   },
   actions: {
