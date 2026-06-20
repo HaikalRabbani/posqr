@@ -1,0 +1,124 @@
+From 6269a0b3d9068638198f825d88e99fa6e81cf93c Mon Sep 17 00:00:00 2001
+From: HaikalRabbani <muhaikalrabbani@gmail.com>
+Date: Sat, 20 Jun 2026 09:03:32 +0000
+Subject: [PATCH] fix: bersihkan sisa pemanggilan localStorage usang &
+ kembalikan offset WIB di countdown payment
+
+- Hapus pemanggilan cartStore.loadFromLocalStorage()/saveToLocalStorage() di
+  cart.vue yang sudah tidak ada di store (sisa migrasi ke sessionStorage
+  plugin), menyebabkan runtime error tiap halaman cart dibuka & tiap input
+  notes/nama diketik
+- Disable tombol qty stepper (+) di cart saat sudah mencapai batas stok
+- Kembalikan offset +07:00 saat parsing expiry_time di payment.vue, karena
+  Midtrans Core API mengirim timestamp dalam WIB tanpa info zona eksplisit
+  di string-nya; tanpa offset ini countdown timer bisa salah di device
+  dengan timezone selain WIB
+- Pindahkan .env ke .gitignore, tambahkan .env.example sebagai template
+---
+ .env                  | 5 -----
+ .env.example          | 4 ++++
+ .gitignore            | 5 +++++
+ src/pages/cart.vue    | 9 ++++-----
+ src/pages/payment.vue | 5 ++++-
+ 5 files changed, 17 insertions(+), 11 deletions(-)
+ delete mode 100644 .env
+ create mode 100644 .env.example
+
+diff --git a/.env b/.env
+deleted file mode 100644
+index 5fd5a70..0000000
+--- a/.env
++++ /dev/null
+@@ -1,5 +0,0 @@
+-VITE_API_BASE_URL=https://api.etres.my.id/api/v1
+-VITE_REVERB_APP_KEY=r3gcjhwwanzthldyihry
+-VITE_REVERB_HOST=wss.etres.my.id
+-VITE_REVERB_PORT=443
+-VITE_REVERB_SCHEME=https
+\ No newline at end of file
+diff --git a/.env.example b/.env.example
+new file mode 100644
+index 0000000..c080f8b
+--- /dev/null
++++ b/.env.example
+@@ -0,0 +1,4 @@
++VITE_API_BASE_URL=https://api.etres.my.id/api/v1
++VITE_REVERB_APP_KEY=
++VITE_REVERB_HOST=
++VITE_REVERB_PORT=443
+diff --git a/.gitignore b/.gitignore
+index cd68f14..1e92267 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -37,3 +37,8 @@ __screenshots__/
+ 
+ # Vite
+ *.timestamp-*-*.mjs
++
++# Environment variables
++.env
++.env.local
++.env.*.local
+diff --git a/src/pages/cart.vue b/src/pages/cart.vue
+index 53cb744..ab31d8c 100644
+--- a/src/pages/cart.vue
++++ b/src/pages/cart.vue
+@@ -42,8 +42,6 @@ const fetchTaxesAndDiscounts = async () => {
+ }
+ 
+ onMounted(() => { 
+-  // Ambil data keranjang cadangan dari localStorage saat halaman cart dibuka
+-  cartStore.loadFromLocalStorage()
+   fetchTaxesAndDiscounts() 
+ })
+ 
+@@ -190,11 +188,11 @@ const handleCheckout = async () => {
+           <div class="item-qty-control">
+             <button @click="cartStore.removeItem(item.product_id)">-</button>
+             <span class="qty-text">{{ item.qty }}</span>
+-            <button @click="cartStore.addItem(item)">+</button>
++            <button :disabled="item.qty >= (item.stock ?? Infinity)" @click="cartStore.addItem(item)">+</button>
+           </div>
+         </div>
+         <div class="item-note-wrapper">
+-          <input v-model="item.notes" type="text" class="input-note" placeholder="Tambahkan catatan (opsional)..." @input="cartStore.saveToLocalStorage()" />
++          <input v-model="item.notes" type="text" class="input-note" placeholder="Tambahkan catatan (opsional)..." />
+         </div>
+       </div>
+     </div>
+@@ -211,7 +209,7 @@ const handleCheckout = async () => {
+           placeholder="Siapa nama kamu?" 
+           class="input-minimal"
+           :class="{ 'input-error': nameError }"
+-          @input="() => { nameError = false; cartStore.saveToLocalStorage(); }"
++          @input="nameError = false"
+         />
+         <span v-if="nameError" class="error-text">Nama pelanggan wajib diisi sebelum memesan.</span>
+       </div>
+@@ -319,6 +317,7 @@ const handleCheckout = async () => {
+ .item-price { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #5A7A9A; margin-top: 4px; }
+ .item-qty-control { display: flex; align-items: center; gap: 10px; background: #EBF3FB; padding: 4px 10px; border-radius: 8px; }
+ .item-qty-control button { border: none; background: none; color: #1B4F8A; font-weight: bold; font-size: 18px; cursor: pointer; }
++.item-qty-control button:disabled { color: #8AAFCC; cursor: not-allowed; opacity: 0.5; }
+ .qty-text { font-family: 'JetBrains Mono', monospace; font-weight: 600; min-width: 20px; text-align: center; }
+ .input-note { width: 100%; border: 1px dashed #D4E4F4; background: #FAFCFF; padding: 8px; border-radius: 6px; font-size: 12px; margin-top: 8px; outline: none; }
+ 
+diff --git a/src/pages/payment.vue b/src/pages/payment.vue
+index fc691e1..b58b8a6 100644
+--- a/src/pages/payment.vue
++++ b/src/pages/payment.vue
+@@ -25,7 +25,10 @@ const formatTime = (secs) => {
+ 
+ const startCountdown = () => {
+   if (!expiryTime.value) return
+-  const target = new Date(expiryTime.value.replace(' ', 'T')).getTime()
++  // Midtrans Core API mengirim expiry_time dalam zona waktu WIB (GMT+7) tanpa
++  // info offset eksplisit di string-nya, jadi offset wajib ditambahkan manual
++  // di sini agar tidak salah diasumsikan sebagai UTC/local time browser.
++  const target = new Date(expiryTime.value.replace(' ', 'T') + '+07:00').getTime()
+ 
+   const tick = () => {
+     const now = Date.now()
+-- 
+2.43.0
+

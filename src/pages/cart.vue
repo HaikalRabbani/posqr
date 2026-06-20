@@ -42,8 +42,6 @@ const fetchTaxesAndDiscounts = async () => {
 }
 
 onMounted(() => { 
-  // Ambil data keranjang cadangan dari localStorage saat halaman cart dibuka
-  cartStore.loadFromLocalStorage()
   fetchTaxesAndDiscounts() 
 })
 
@@ -190,11 +188,11 @@ const handleCheckout = async () => {
           <div class="item-qty-control">
             <button @click="cartStore.removeItem(item.product_id)">-</button>
             <span class="qty-text">{{ item.qty }}</span>
-            <button @click="cartStore.addItem(item)">+</button>
+            <button :disabled="item.qty >= (item.stock ?? Infinity)" @click="cartStore.addItem(item)">+</button>
           </div>
         </div>
         <div class="item-note-wrapper">
-          <input v-model="item.notes" type="text" class="input-note" placeholder="Tambahkan catatan (opsional)..." @input="cartStore.saveToLocalStorage()" />
+          <input v-model="item.notes" type="text" class="input-note" placeholder="Tambahkan catatan (opsional)..." />
         </div>
       </div>
     </div>
@@ -211,7 +209,7 @@ const handleCheckout = async () => {
           placeholder="Siapa nama kamu?" 
           class="input-minimal"
           :class="{ 'input-error': nameError }"
-          @input="() => { nameError = false; cartStore.saveToLocalStorage(); }"
+          @input="nameError = false"
         />
         <span v-if="nameError" class="error-text">Nama pelanggan wajib diisi sebelum memesan.</span>
       </div>
@@ -319,6 +317,7 @@ const handleCheckout = async () => {
 .item-price { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #5A7A9A; margin-top: 4px; }
 .item-qty-control { display: flex; align-items: center; gap: 10px; background: #EBF3FB; padding: 4px 10px; border-radius: 8px; }
 .item-qty-control button { border: none; background: none; color: #1B4F8A; font-weight: bold; font-size: 18px; cursor: pointer; }
+.item-qty-control button:disabled { color: #8AAFCC; cursor: not-allowed; opacity: 0.5; }
 .qty-text { font-family: 'JetBrains Mono', monospace; font-weight: 600; min-width: 20px; text-align: center; }
 .input-note { width: 100%; border: 1px dashed #D4E4F4; background: #FAFCFF; padding: 8px; border-radius: 6px; font-size: 12px; margin-top: 8px; outline: none; }
 

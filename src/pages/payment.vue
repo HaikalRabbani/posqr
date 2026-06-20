@@ -25,7 +25,10 @@ const formatTime = (secs) => {
 
 const startCountdown = () => {
   if (!expiryTime.value) return
-  const target = new Date(expiryTime.value.replace(' ', 'T')).getTime()
+  // Midtrans Core API mengirim expiry_time dalam zona waktu WIB (GMT+7) tanpa
+  // info offset eksplisit di string-nya, jadi offset wajib ditambahkan manual
+  // di sini agar tidak salah diasumsikan sebagai UTC/local time browser.
+  const target = new Date(expiryTime.value.replace(' ', 'T') + '+07:00').getTime()
 
   const tick = () => {
     const now = Date.now()
