@@ -20,6 +20,15 @@ const isSubmitting = ref(false)
 const showDiscountModal = ref(false) 
 const nameError = ref(false) 
 
+// Kalau pembayaran online ternyata tidak tersedia (mis. owner belum setup
+// Midtrans, atau status berubah saat refresh), pastikan paymentMethod tidak
+// nyangkut di 'qris' yang pill-nya sudah disembunyikan dari UI.
+watch(() => cartStore.onlinePaymentAvailable, (available) => {
+  if (!available && paymentMethod.value === 'qris') {
+    paymentMethod.value = 'cash'
+  }
+}, { immediate: true })
+
 const availableTaxes = ref([])
 const availableDiscounts = ref([])
 
@@ -241,10 +250,19 @@ const handleCheckout = async () => {
         <label>Metode Pembayaran</label>
         <div class="payment-options">
           <div class="pay-pill" :class="{ active: paymentMethod === 'cash' }" @click="paymentMethod = 'cash'">Cash</div>
-          <div class="pay-pill" :class="{ active: paymentMethod === 'qris' }" @click="paymentMethod = 'qris'">QRIS</div>
+          <div v-if="cartStore.onlinePaymentAvailable" class="pay-pill" :class="{ active: paymentMethod === 'qris' }" @click="paymentMethod = 'qris'">QRIS</div>
         </div>
 
-        <div v-if="paymentMethod === 'cash'" class="cash-warning-alert">
+        <div v-if="!cartStore.onlinePaymentAvailable" class="cash-warning-alert">
+          <svg class="icon-warning" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+          </svg>
+          <div class="warning-text">
+            <strong>Pembayaran Online Belum Tersedia</strong>
+            Outlet ini hanya menerima pembayaran cash di kasir untuk saat ini.
+          </div>
+        </div>
+        <div v-else-if="paymentMethod === 'cash'" class="cash-warning-alert">
           <svg class="icon-warning" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
           </svg>

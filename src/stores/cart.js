@@ -4,6 +4,7 @@ export const useCartStore = defineStore('cart', {
   state: () => ({
     tableToken: null,
     tableInfo: null,
+    onlinePaymentAvailable: true,
     items: [],
     customerName: '', 
     appliedDiscount: null, // Menyimpan object voucher global pilihan user
@@ -130,9 +131,10 @@ export const useCartStore = defineStore('cart', {
     }
   },
   actions: {
-    setTable(token, info) {
+    setTable(token, info, onlinePaymentAvailable = true) {
       this.tableToken = token
       this.tableInfo = info
+      this.onlinePaymentAvailable = onlinePaymentAvailable
     },
     applyDiscount(discountData) {
       this.appliedDiscount = discountData

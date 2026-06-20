@@ -163,7 +163,7 @@ const fetchMenu = async () => {
     }))
 
     tableInfo.value = response.data.table
-    cartStore.setTable(token, response.data.table)
+    cartStore.setTable(token, response.data.table, response.data.online_payment_available !== false)
 
     if (tableInfo.value?.outlet_id) {
       await fetchBestSellers(tableInfo.value.outlet_id)
