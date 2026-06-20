@@ -125,18 +125,6 @@ export const useCartStore = defineStore('cart', {
     }
   },
   actions: {
-    saveToLocalStorage() {
-      localStorage.setItem('posqr_items_backup', JSON.stringify(this.items))
-      localStorage.setItem('posqr_name_backup', this.customerName)
-    },
-    loadFromLocalStorage() {
-      const savedItems = localStorage.getItem('posqr_items_backup')
-      const savedName = localStorage.getItem('posqr_name_backup')
-      if (savedItems) {
-        try { this.items = JSON.parse(savedItems) } catch (e) { console.error(e) }
-      }
-      if (savedName) { this.customerName = savedName }
-    },
     setTable(token, info) {
       this.tableToken = token
       this.tableInfo = info
@@ -156,12 +144,20 @@ export const useCartStore = defineStore('cart', {
       const promoPrice = product.promo_price ? Number(product.promo_price) : price;
       const discountAmountPerItem = product.discount_amount_per_item ? Number(product.discount_amount_per_item) : 0;
       const minPurchase = product.min_purchase ? Number(product.min_purchase) : 0; // Ambil data min_purchase produk
+      const stock = (product.stock !== undefined && product.stock !== null) ? Number(product.stock) : Infinity;
 
       const existingItem = this.items.find(item => Number(item.product_id) === productId);
-      
+
       if (existingItem) {
-        existingItem.qty++; 
+        const stockLimit = (existingItem.stock !== undefined && existingItem.stock !== null) ? existingItem.stock : stock;
+        if (existingItem.qty >= stockLimit) {
+          return { success: false, reason: 'stock_limit' }
+        }
+        existingItem.qty++;
       } else {
+        if (stock <= 0) {
+          return { success: false, reason: 'stock_limit' }
+        }
         this.items.push({
           product_id: productId,
           name: product.name,
@@ -171,10 +167,11 @@ export const useCartStore = defineStore('cart', {
           is_promo: isPromo,
           promo_price: promoPrice,
           discount_amount_per_item: discountAmountPerItem,
-          min_purchase: minPurchase 
+          min_purchase: minPurchase,
+          stock: stock
         })
       }
-      this.saveToLocalStorage()
+      return { success: true }
     },
     removeItem(productId) {
       const index = this.items.findIndex(item => Number(item.product_id) === Number(productId))
@@ -185,14 +182,11 @@ export const useCartStore = defineStore('cart', {
           this.items.splice(index, 1)
         }
       }
-      this.saveToLocalStorage()
     },
     clearCart() {
       this.items = []
       this.customerName = ''
       this.appliedDiscount = null 
-      localStorage.removeItem('posqr_items_backup')
-      localStorage.removeItem('posqr_name_backup')
       localStorage.removeItem('posqr_last_order_id')
     }
   }

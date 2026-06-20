@@ -71,9 +71,13 @@ const onDragEnd = () => {
 // ------------------------------------
 
 const handleAddToCart = (product) => {
-  cartStore.addItem(product)
-  
-  toastMessage.value = `masuk keranjang!`
+  const result = cartStore.addItem(product)
+
+  if (result && result.success === false) {
+    toastMessage.value = `Stok "${product.name}" tidak mencukup!`
+  } else {
+    toastMessage.value = `masuk keranjang!`
+  }
   showToast.value = true
   
   if (toastTimer) clearTimeout(toastTimer)
