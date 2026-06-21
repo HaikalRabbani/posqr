@@ -33,10 +33,13 @@ const availableTaxes = ref([])
 const availableDiscounts = ref([])
 
 const fetchTaxesAndDiscounts = async () => {
+  const outletId = cartStore.tableInfo?.outlet_id
+  if (!outletId) return
+
   try {
     const [taxRes, discRes] = await Promise.all([
-      api.get('/public/taxes'),
-      api.get('/public/discounts')
+      api.get('/public/taxes', { params: { outlet_id: outletId } }),
+      api.get('/public/discounts', { params: { outlet_id: outletId } })
     ])
     availableTaxes.value = (taxRes.data.data || taxRes.data).filter(t => t.active)
     
