@@ -36,20 +36,13 @@ const fetchTaxesAndDiscounts = async () => {
   const outletId = cartStore.tableInfo?.outlet_id
   if (!outletId) return
 
-  try {
-    const [taxRes, discRes] = await Promise.all([
-      api.get('/public/taxes', { params: { outlet_id: outletId } }),
-      api.get('/public/discounts', { params: { outlet_id: outletId } })
-    ])
-    availableTaxes.value = (taxRes.data.data || taxRes.data).filter(t => t.active)
-    
-    let discountsData = (discRes.data.data || discRes.data)
-
-    // Hitung nilai diskon aktual sebelum sort (agar perbandingan percentage vs nominal akurat)
-    const discountsWithCalculated = discountsData.map(d => {
+  // Use cached data if available
+  if (cartStore.cachedTaxes && cartStore.cachedDiscounts) {
+    availableTaxes.value = cartStore.cachedTaxes
+    // Calculate calculatedValue for cached discounts each time to ensure up-to-date subtotal
+    const discountsWithCalculated = cartStore.cachedDiscounts.map(d => {
       let calculatedValue = 0
       const subtotal = cartStore.items.reduce((total, item) => total + (Number(item.price) * item.qty), 0)
-      
       if (d.type === 'percentage') {
         calculatedValue = subtotal * (Number(d.value) / 100)
         if (d.max_discount && calculatedValue > Number(d.max_discount)) {
@@ -58,19 +51,43 @@ const fetchTaxesAndDiscounts = async () => {
       } else {
         calculatedValue = Number(d.value)
       }
-      
       return { ...d, calculatedValue }
     })
-
     discountsWithCalculated.sort((a, b) => b.calculatedValue - a.calculatedValue)
-
     availableDiscounts.value = discountsWithCalculated
-
     const autoSelect = discountsWithCalculated.find(d => isDiscountEligible(d))
-    
-    if (autoSelect && !cartStore.appliedDiscount) {
-      cartStore.applyDiscount(autoSelect)
-    }
+    if (autoSelect && !cartStore.appliedDiscount) cartStore.applyDiscount(autoSelect)
+    return
+  }
+
+  try {
+    const [taxRes, discRes] = await Promise.all([
+      api.get('/public/taxes', { params: { outlet_id: outletId } }),
+      api.get('/public/discounts', { params: { outlet_id: outletId } })
+    ])
+    const taxes = (taxRes.data.data || taxRes.data).filter(t => t.active)
+    const discountsData = (discRes.data.data || discRes.data)
+    // Cache raw data
+    cartStore.cachedTaxes = taxes
+    cartStore.cachedDiscounts = discountsData
+    availableTaxes.value = taxes
+    const discountsWithCalculated = discountsData.map(d => {
+      let calculatedValue = 0
+      const subtotal = cartStore.items.reduce((total, item) => total + (Number(item.price) * item.qty), 0)
+      if (d.type === 'percentage') {
+        calculatedValue = subtotal * (Number(d.value) / 100)
+        if (d.max_discount && calculatedValue > Number(d.max_discount)) {
+          calculatedValue = Number(d.max_discount)
+        }
+      } else {
+        calculatedValue = Number(d.value)
+      }
+      return { ...d, calculatedValue }
+    })
+    discountsWithCalculated.sort((a, b) => b.calculatedValue - a.calculatedValue)
+    availableDiscounts.value = discountsWithCalculated
+    const autoSelect = discountsWithCalculated.find(d => isDiscountEligible(d))
+    if (autoSelect && !cartStore.appliedDiscount) cartStore.applyDiscount(autoSelect)
   } catch (error) {
     console.error('Gagal memuat data:', error)
   }
