@@ -120,10 +120,10 @@ onMounted(() => {
   // 3. MULAI MENDENGARKAN REALTIME REVERB (TETAP DIPERTAHANKAN)
   const orderId = route.params.id
   echo.channel(`customer-order.${orderId}`)
-    .listen('.PaymentPaid', (e) => {
+    .listen('.PaymentPaid', () => {
       fetchOrderStatus()
     })
-    .listen('.OrderUpdated', (e) => {
+    .listen('.OrderUpdated', () => {
       fetchOrderStatus()
     })
 })
