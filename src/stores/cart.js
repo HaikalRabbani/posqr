@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import api from '../services/api.js'
 
 export const useCartStore = defineStore('cart', {
   state: () => ({
@@ -8,6 +9,8 @@ export const useCartStore = defineStore('cart', {
     items: [],
     customerName: '', 
     appliedDiscount: null, // Menyimpan object voucher global pilihan user
+    cachedTaxes: null,
+    cachedDiscounts: null,
   }),
   getters: {
     totalItems: (state) => state.items.reduce((total, item) => total + item.qty, 0),
@@ -109,7 +112,8 @@ export const useCartStore = defineStore('cart', {
 
     isDiscountEligible: (state) => (discount) => {
       const subtotalMurni = state.items.reduce((total, item) => total + (Number(item.price) * item.qty), 0);
-      const meetMinPurchase = discount.min_purchase === 0 || subtotalMurni >= discount.min_purchase;
+      const minPurchase = Number(discount.min_purchase) || 0;
+      const meetMinPurchase = minPurchase === 0 || subtotalMurni >= minPurchase;
       if (!meetMinPurchase) return false;
 
       const scope = discount.scope || 'global';
@@ -194,6 +198,8 @@ export const useCartStore = defineStore('cart', {
       this.items = []
       this.customerName = ''
       this.appliedDiscount = null 
+      this.cachedTaxes = null
+      this.cachedDiscounts = null
       localStorage.removeItem('posqr_last_order_id')
     }
   }

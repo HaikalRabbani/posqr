@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import api from '../services/api.js'
 import { useCartStore } from '../stores/cart.js'
 
@@ -17,6 +17,7 @@ const activeCategory = ref(null)
 const sectionRefs = ref({})
 const categoryNavRef = ref(null)
 let isClickScrolling = false
+let fetchAbortController = null
 
 const showToast = ref(false)
 const toastMessage = ref('')
@@ -119,11 +120,12 @@ const formatRupiah = (angka) => {
   return new Intl.NumberFormat('id-ID').format(angka)
 }
 
+const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://api.etres.my.id/api/v1'
+const storageUrl = baseUrl.replace('/api/v1', '/storage')
+
 const getImageUrl = (imagePath) => {
   if (!imagePath) return 'https://placehold.co/400x400/EBF3FB/8AAFCC?text=No+Image'
   if (imagePath.startsWith('http')) return imagePath
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://api.etres.my.id/api/v1'
-  const storageUrl = baseUrl.replace('/api/v1', '/storage')
   return `${storageUrl}/${imagePath}`
 }
 
@@ -153,9 +155,16 @@ const fetchBestSellers = async (outletId) => {
 const fetchMenu = async () => {
   try {
     const token = route.params.token
-    const response = await api.get(`/public/menu/${token}`)
+    // Abort previous request if still pending
+    if (fetchAbortController) {
+      fetchAbortController.abort()
+    }
+    fetchAbortController = new AbortController()
+    const response = await api.get(`/public/menu/${token}`, {
+      signal: fetchAbortController.signal
+    })
     
-    // FIX FRONTEND: Lakukan mapping data produk agar properti min_purchase terbaca angka oleh "v-if"
+    // Map data produk, pastikan properti min_purchase angka
     const rawProducts = response.data.products || []
     products.value = rawProducts.map(p => ({
       ...p,
@@ -241,6 +250,13 @@ const scrollToCategoryPill = (catId) => {
     }
   })
 }
+
+onBeforeRouteLeave(() => {
+  if (showModal.value) {
+    closeModal()
+  }
+  document.body.style.overflow = ''
+})
 
 onMounted(() => {
   window.addEventListener('scroll', onScroll)

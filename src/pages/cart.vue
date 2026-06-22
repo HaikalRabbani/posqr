@@ -45,13 +45,28 @@ const fetchTaxesAndDiscounts = async () => {
     
     let discountsData = (discRes.data.data || discRes.data)
 
-    // urutkan dari nilai value diskon terbesar ke terkecil
-    discountsData.sort((a, b) => Number(b.value) - Number(a.value))
+    // Hitung nilai diskon aktual sebelum sort (agar perbandingan percentage vs nominal akurat)
+    const discountsWithCalculated = discountsData.map(d => {
+      let calculatedValue = 0
+      const subtotal = cartStore.items.reduce((total, item) => total + (Number(item.price) * item.qty), 0)
+      
+      if (d.type === 'percentage') {
+        calculatedValue = subtotal * (Number(d.value) / 100)
+        if (d.max_discount && calculatedValue > Number(d.max_discount)) {
+          calculatedValue = Number(d.max_discount)
+        }
+      } else {
+        calculatedValue = Number(d.value)
+      }
+      
+      return { ...d, calculatedValue }
+    })
 
-    availableDiscounts.value = discountsData
+    discountsWithCalculated.sort((a, b) => b.calculatedValue - a.calculatedValue)
 
-    // Sekarang, .find() pasti bakal nemu diskon murni yang nilainya paling gede dan eligible!
-    const autoSelect = discountsData.find(d => isDiscountEligible(d))
+    availableDiscounts.value = discountsWithCalculated
+
+    const autoSelect = discountsWithCalculated.find(d => isDiscountEligible(d))
     
     if (autoSelect && !cartStore.appliedDiscount) {
       cartStore.applyDiscount(autoSelect)
@@ -66,16 +81,14 @@ onMounted(() => {
 })
 
 watch(
-  () => cartStore.items, 
+  () => cartStore.totalPrice,
   () => {
     if (availableDiscounts.value.length > 0) {
-      // Jika voucher yang lagi aktif tiba-tiba jadi GA lolos syarat, langsung lepas.
       if (cartStore.appliedDiscount && !isDiscountEligible(cartStore.appliedDiscount)) {
         cartStore.removeDiscount()
       }
     }
-  }, 
-  { deep: true }
+  }
 )
 
 const activeDiscount = computed(() => cartStore.appliedDiscount)
@@ -212,7 +225,7 @@ const handleCheckout = async () => {
           </div>
         </div>
         <div class="item-note-wrapper">
-          <input v-model="item.notes" type="text" class="input-note" placeholder="Tambahkan catatan (opsional)..." />
+          <input v-model.lazy="item.notes" type="text" class="input-note" placeholder="Tambahkan catatan (opsional)..." />
         </div>
       </div>
     </div>
