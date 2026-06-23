@@ -91,26 +91,24 @@ const downloadQRCode = async () => {
   if (!qrUrl.value) return
   isDownloading.value = true
   try {
-    // QR Midtrans ada di domain lain (api.midtrans.com) yang tidak mengirim header
-    // CORS, jadi fetch()+blob() pasti gagal di browser. Coba dulu (jaga-jaga kalau
-    // suatu saat di-proxy same-origin), lalu fallback buka gambar di tab baru agar
-    // pelanggan tetap bisa simpan/screenshot QR-nya.
-    const response = await fetch(qrUrl.value, { mode: 'cors' })
-    if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    const blob = await response.blob()
-    const url = window.URL.createObjectURL(blob)
+    // Gambar QR ada di domain Midtrans yang tidak mengirim header CORS, jadi tidak
+    // bisa diunduh langsung dari browser. Lewatkan via proxy API kita sendiri (yang
+    // CORS-nya sudah diizinkan) supaya bisa diunduh sebagai file gambar langsung.
+    const response = await api.get('/public/qr-image', {
+      params: { url: qrUrl.value },
+      responseType: 'blob',
+    })
+    const url = window.URL.createObjectURL(response.data)
     const link = document.createElement('a')
     link.href = url
     link.download = `QR-Pembayaran-${route.params.id}.png`
+    document.body.appendChild(link)
     link.click()
+    link.remove()
     window.URL.revokeObjectURL(url)
   } catch (error) {
-    // Fallback: buka gambar QR langsung supaya bisa disimpan manual.
-    console.warn('Unduh langsung gagal (kemungkinan CORS), fallback buka tab:', error)
-    const win = window.open(qrUrl.value, '_blank', 'noopener,noreferrer')
-    if (!win) {
-      alert('Tidak bisa membuka QR. Mohon izinkan popup atau screenshot QR di layar.')
-    }
+    console.error('Gagal mengunduh QR:', error)
+    alert('Gagal mengunduh QR code. Silakan coba lagi.')
   } finally {
     isDownloading.value = false
   }
