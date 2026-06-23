@@ -56,7 +56,7 @@ const fetchTaxesAndDiscounts = async () => {
     discountsWithCalculated.sort((a, b) => b.calculatedValue - a.calculatedValue)
     availableDiscounts.value = discountsWithCalculated
     const autoSelect = discountsWithCalculated.find(d => isDiscountEligible(d))
-    if (autoSelect && !cartStore.appliedDiscount) cartStore.applyDiscount(autoSelect)
+    if (autoSelect && cartStore.appliedDiscounts.length === 0) cartStore.applyDiscount(autoSelect)
     return
   }
 
@@ -87,7 +87,7 @@ const fetchTaxesAndDiscounts = async () => {
     discountsWithCalculated.sort((a, b) => b.calculatedValue - a.calculatedValue)
     availableDiscounts.value = discountsWithCalculated
     const autoSelect = discountsWithCalculated.find(d => isDiscountEligible(d))
-    if (autoSelect && !cartStore.appliedDiscount) cartStore.applyDiscount(autoSelect)
+    if (autoSelect && cartStore.appliedDiscounts.length === 0) cartStore.applyDiscount(autoSelect)
   } catch (error) {
     console.error('Gagal memuat data:', error)
   }
@@ -101,24 +101,31 @@ watch(
   () => cartStore.totalPrice,
   () => {
     if (availableDiscounts.value.length > 0) {
-      if (cartStore.appliedDiscount && !isDiscountEligible(cartStore.appliedDiscount)) {
-        cartStore.removeDiscount()
-      }
+      // Buang diskon yang jadi tidak memenuhi syarat setelah total berubah.
+      ;[...cartStore.appliedDiscounts].forEach(d => {
+        if (!isDiscountEligible(d)) cartStore.removeDiscount(d.id)
+      })
     }
   }
 )
 
-const activeDiscount = computed(() => cartStore.appliedDiscount)
+const appliedDiscounts = computed(() => cartStore.appliedDiscounts)
 const discountAmount = computed(() => cartStore.discountAmount)
 const isDiscountEligible = (d) => cartStore.isDiscountEligible(d)
+const isDiscountApplied = (d) => cartStore.isDiscountApplied(d)
+
+// Label ringkas untuk baris diskon di ringkasan pembayaran.
+const discountLabel = computed(() => {
+  const list = appliedDiscounts.value
+  if (list.length === 0) return ''
+  if (list.length === 1) return ` (${list[0].name})`
+  return ` (${list.length} promo)`
+})
 
 const selectDiscount = (discountItem) => {
-  if (activeDiscount.value?.id === discountItem.id) {
-    cartStore.removeDiscount() // Jika diklik ulang voucher yang sama, batalkan voucher global
-  } else {
-    cartStore.applyDiscount(discountItem) // Jika diklik voucher baru, pasang voucher global & override promo produk
-  }
-  showDiscountModal.value = false
+  // Toggle: diskon produk/kategori boleh ditumpuk (modal tetap terbuka),
+  // diskon global otomatis eksklusif (mengganti yang lain) di store.
+  cartStore.toggleDiscount(discountItem)
 }
 
 // --- LOGIKA MULTI-PAJAK (METODE BERTINGKAT / SEKUENSIAL) ---
@@ -166,6 +173,17 @@ const handleCheckout = async () => {
 
   isSubmitting.value = true
   try {
+    // Diskon global -> kirim discount_id tunggal (eksklusif).
+    // Diskon produk/kategori -> kirim discount_ids[] (boleh bertumpuk).
+    const applied = cartStore.appliedDiscounts
+    const globalDisc = applied.find(d => (d.scope || 'global') === 'global')
+    let discountPayload = { discount_id: null }
+    if (globalDisc) {
+      discountPayload = { discount_id: globalDisc.id }
+    } else if (applied.length > 0) {
+      discountPayload = { discount_ids: applied.map(d => d.id) }
+    }
+
     const payload = {
       outlet_id: cartStore.tableInfo.outlet_id,
       table_id: cartStore.tableInfo.id,
@@ -173,7 +191,7 @@ const handleCheckout = async () => {
       payment_method: paymentMethod.value,
       tax_amount: totalTaxAmount.value,
       tax_breakdown: taxBreakdown.value,
-      discount_id: activeDiscount.value?.id || null,
+      ...discountPayload,
       previous_order_id: localStorage.getItem('posqr_last_order_id') || null,
       items: cartStore.items.map(item => ({
         product_id: item.product_id,
@@ -269,11 +287,12 @@ const handleCheckout = async () => {
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/>
           </svg>
-          <span v-if="!activeDiscount">Pilih Promo / Diskon</span>
-          <span v-else class="active-promo-name">{{ activeDiscount.name }}</span>
+          <span v-if="appliedDiscounts.length === 0">Pilih Promo / Diskon</span>
+          <span v-else-if="appliedDiscounts.length === 1" class="active-promo-name">{{ appliedDiscounts[0].name }}</span>
+          <span v-else class="active-promo-name">{{ appliedDiscounts.length }} promo dipilih</span>
         </div>
         <div class="voucher-right">
-          <span v-if="!activeDiscount" class="voucher-hint">Gunakan Voucher</span>
+          <span v-if="appliedDiscounts.length === 0" class="voucher-hint">Gunakan Voucher</span>
           <span v-else class="voucher-price">-Rp {{ formatRupiah(discountAmount) }}</span>
           <span class="arrow">›</span>
         </div>
@@ -314,7 +333,7 @@ const handleCheckout = async () => {
       </div>
 
       <div v-if="discountAmount > 0" class="summary-row">
-        <span class="muted-label">Diskon ({{ activeDiscount?.name }})</span>
+        <span class="muted-label">Diskon{{ discountLabel }}</span>
         <span class="mono-value diskon-text">- Rp {{ formatRupiah(discountAmount) }}</span>
       </div>
 
@@ -341,9 +360,10 @@ const handleCheckout = async () => {
         </div>
         <div class="modal-body">
           <div v-if="availableDiscounts.length === 0" class="empty-promo">Tidak ada promo tersedia.</div>
-          <!-- FIX LOGIKA MODAL: Sesuaikan dengan cartStore -->
-          <div v-for="d in availableDiscounts" :key="d.id" 
-               class="promo-card" :class="{ disabled: !isDiscountEligible(d), active: activeDiscount?.id === d.id }"
+          <p v-else class="promo-hint-multi">Diskon produk/kategori bisa dipilih lebih dari satu. Diskon global hanya satu &amp; tidak bisa digabung.</p>
+          <!-- Multi-select: produk/kategori bisa ditumpuk, global eksklusif (diatur di store) -->
+          <div v-for="d in availableDiscounts" :key="d.id"
+               class="promo-card" :class="{ disabled: !isDiscountEligible(d), active: isDiscountApplied(d) }"
                @click="isDiscountEligible(d) ? selectDiscount(d) : null">
             <div class="promo-info">
               <span class="promo-name">{{ d.name }}</span>
@@ -351,10 +371,11 @@ const handleCheckout = async () => {
               <span class="promo-min">Min. Belanja Rp {{ formatRupiah(d.min_purchase) }}</span>
             </div>
             <div class="promo-radio">
-              <div class="radio-circle"><div v-if="activeDiscount?.id === d.id" class="radio-inner"></div></div>
+              <div class="radio-circle"><div v-if="isDiscountApplied(d)" class="radio-inner"></div></div>
             </div>
           </div>
         </div>
+        <button class="btn-primary modal-done-btn" @click="showDiscountModal = false">Selesai</button>
       </div>
     </div>
   </div>
@@ -435,6 +456,8 @@ const handleCheckout = async () => {
 .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #D4E4F4; padding-bottom: 15px; margin-bottom: 15px; }
 .modal-header h3 { font-size: 18px; margin: 0; }
 .close-btn { font-size: 20px; color: #8AAFCC; cursor: pointer; }
+.promo-hint-multi { font-size: 11px; color: #5A7A9A; line-height: 1.5; margin: 0 0 14px; padding: 8px 12px; background: #F5F9FD; border-radius: 8px; }
+.modal-done-btn { width: 100%; height: 48px; background: #2E7DD6; color: #FFF; border: none; border-radius: 10px; font-weight: 600; font-size: 15px; margin-top: 8px; cursor: pointer; font-family: 'Poppins', sans-serif; }
 .promo-card { display: flex; justify-content: space-between; align-items: center; border: 1px solid #D4E4F4; border-radius: 12px; padding: 15px; margin-bottom: 12px; cursor: pointer; transition: 0.2s; }
 .promo-card.active { border-color: #2E7DD6; background: #FAFCFF; }
 .promo-card.disabled { opacity: 0.5; background: #F8FAFC; cursor: not-allowed; }

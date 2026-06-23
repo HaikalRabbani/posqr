@@ -7,8 +7,11 @@ export const useCartStore = defineStore('cart', {
     tableInfo: null,
     onlinePaymentAvailable: true,
     items: [],
-    customerName: '', 
-    appliedDiscount: null, // Menyimpan object voucher global pilihan user
+    customerName: '',
+    // Daftar diskon yang dipasang user.
+    // - Diskon scope produk/kategori boleh lebih dari satu (bertumpuk).
+    // - Diskon global hanya boleh satu DAN eksklusif (tidak bisa dibarengi yang lain).
+    appliedDiscounts: [],
     cachedTaxes: null,
     cachedDiscounts: null,
   }),
@@ -23,8 +26,8 @@ export const useCartStore = defineStore('cart', {
       return state.items.reduce((total, item) => {
         let currentPrice = Number(item.price);
 
-        // KONDISI 1: User TIDAK sedang pakai voucher global
-        if (!state.appliedDiscount) {
+        // KONDISI 1: User TIDAK sedang pakai voucher/diskon apa pun
+        if (state.appliedDiscounts.length === 0) {
           // Diskon produk aktif HANYA JIKA min_purchase = 0 ATAU total belanja murni sudah lolos syarat min_purchase produk
           const lulusSyaratProduk = !item.min_purchase || Number(item.min_purchase) === 0 || subtotalMurni >= Number(item.min_purchase);
           
@@ -39,70 +42,105 @@ export const useCartStore = defineStore('cart', {
       }, 0);
     },
 
-    // HITUNG DISKON VOUCHER GLOBAL (Abaikan promo produk di sini)
+    // Diskon global yang sedang aktif (kalau ada). Global selalu eksklusif.
+    globalDiscount(state) {
+      return state.appliedDiscounts.find(d => (d.scope || 'global') === 'global') || null;
+    },
+
+    // Kompatibilitas: sebagian kode lama mengacu ke satu diskon. Kembalikan yang pertama.
+    appliedDiscount(state) {
+      return state.appliedDiscounts[0] || null;
+    },
+
+    // TOTAL POTONGAN (abaikan promo produk otomatis selama ada diskon yang dipasang).
+    // Mendukung dua mode: satu diskon global, ATAU beberapa diskon produk/kategori
+    // bertumpuk (tiap item hanya didiskon sekali, ambil yang paling menguntungkan).
     discountAmount(state) {
-      if (!state.appliedDiscount) return 0;
+      if (state.appliedDiscounts.length === 0) return 0;
 
-      const discount = state.appliedDiscount;
-      const discountScope = discount.scope || 'global';
-      const discountValue = Number(discount.value) || 0;
-
-      // Gunakan harga normal/asli produk sebagai basis DPP diskon global (karena promo produk di-override)
       const baseSubtotalMurni = state.items.reduce((total, item) => total + (Number(item.price) * item.qty), 0);
 
-      // VALIDASI UTAMA: Jika total belanja harga normal tidak lolos min_purchase voucher global, diskon = 0
-      if (discount.min_purchase > 0 && baseSubtotalMurni < Number(discount.min_purchase)) {
-        return 0;
-      }
+      // --- MODE GLOBAL (eksklusif, satu diskon) ---
+      const global = state.appliedDiscounts.find(d => (d.scope || 'global') === 'global');
+      if (global) {
+        if (global.min_purchase > 0 && baseSubtotalMurni < Number(global.min_purchase)) return 0;
+        if (baseSubtotalMurni <= 0) return 0;
 
-      let eligibleTotal = 0;
-      let eligibleQty = 0;
-
-      if (discountScope === 'products') {
-        let allowedIds = [];
-        if (Array.isArray(discount.product_ids)) allowedIds = discount.product_ids.map(Number);
-        else if (Array.isArray(discount.products)) allowedIds = discount.products.map(p => Number(p.id));
-
-        const inScope = state.items.filter(item => allowedIds.includes(Number(item.product_id)));
-        eligibleTotal = inScope.reduce((sum, item) => sum + (Number(item.price) * item.qty), 0);
-        eligibleQty = inScope.reduce((sum, item) => sum + item.qty, 0);
-
-      } else if (discountScope === 'categories') {
-        let allowedCats = [];
-        if (Array.isArray(discount.category_ids)) allowedCats = discount.category_ids.map(Number);
-        else if (Array.isArray(discount.categories)) allowedCats = discount.categories.map(c => Number(c.id));
-
-        const inScope = state.items.filter(item => allowedCats.includes(Number(item.category_id)));
-        eligibleTotal = inScope.reduce((sum, item) => sum + (Number(item.price) * item.qty), 0);
-        eligibleQty = inScope.reduce((sum, item) => sum + item.qty, 0);
-
-      } else {
-        eligibleTotal = baseSubtotalMurni; 
-        eligibleQty = state.items.reduce((total, item) => total + item.qty, 0);   
-      }
-
-      if (eligibleTotal <= 0) return 0;
-
-      let finalDiscount = 0;
-      if (discount.type === 'percentage') {
-        finalDiscount = eligibleTotal * (discountValue / 100);
-        const maxVal = Number(discount.max_discount) || 0;
-        if (maxVal > 0 && finalDiscount > maxVal) finalDiscount = maxVal;
-      } else {
-        if (discountScope === 'global') {
-          finalDiscount = discountValue;
+        const value = Number(global.value) || 0;
+        let finalDiscount = 0;
+        if (global.type === 'percentage') {
+          finalDiscount = baseSubtotalMurni * (value / 100);
+          const maxVal = Number(global.max_discount) || 0;
+          if (maxVal > 0 && finalDiscount > maxVal) finalDiscount = maxVal;
         } else {
-          finalDiscount = discountValue * eligibleQty;
+          finalDiscount = Math.min(value, baseSubtotalMurni);
         }
-        finalDiscount = Math.min(finalDiscount, eligibleTotal);
+        return Math.round(finalDiscount);
       }
 
-      return Math.round(finalDiscount);
+      // --- MODE BERTUMPUK (produk/kategori, boleh banyak) ---
+      // Hanya diskon yang lolos min_purchase yang ikut dihitung.
+      const eligible = state.appliedDiscounts.filter(d => {
+        const min = Number(d.min_purchase) || 0;
+        return min === 0 || baseSubtotalMurni >= min;
+      });
+      if (eligible.length === 0) return 0;
+
+      const matchesItem = (d, item) => {
+        const scope = d.scope || 'global';
+        if (scope === 'products') {
+          let allowedIds = [];
+          if (Array.isArray(d.product_ids)) allowedIds = d.product_ids.map(Number);
+          else if (Array.isArray(d.products)) allowedIds = d.products.map(p => Number(p.id));
+          return allowedIds.includes(Number(item.product_id));
+        }
+        if (scope === 'categories') {
+          let allowedCats = [];
+          if (Array.isArray(d.category_ids)) allowedCats = d.category_ids.map(Number);
+          else if (Array.isArray(d.categories)) allowedCats = d.categories.map(c => Number(c.id));
+          return allowedCats.includes(Number(item.category_id));
+        }
+        return false;
+      };
+
+      // Tiap item: pilih satu diskon dengan potongan terbesar, akumulasi per diskon
+      // agar cap max_discount bisa diterapkan per diskon (sama persis dgn backend).
+      const perDiscountSum = {};
+      for (const item of state.items) {
+        const line = Number(item.price) * item.qty;
+        let bestVal = 0;
+        let bestId = null;
+        for (const d of eligible) {
+          if (!matchesItem(d, item)) continue;
+          const value = Number(d.value) || 0;
+          const val = d.type === 'percentage' ? line * (value / 100) : value * item.qty;
+          if (val > bestVal) {
+            bestVal = val;
+            bestId = d.id;
+          }
+        }
+        if (bestId !== null && bestVal > 0) {
+          perDiscountSum[bestId] = (perDiscountSum[bestId] || 0) + bestVal;
+        }
+      }
+
+      let total = 0;
+      for (const [id, sum] of Object.entries(perDiscountSum)) {
+        const d = eligible.find(x => String(x.id) === String(id));
+        let capped = sum;
+        if (d && d.type === 'percentage') {
+          const maxVal = Number(d.max_discount) || 0;
+          if (maxVal > 0 && capped > maxVal) capped = maxVal;
+        }
+        total += capped;
+      }
+
+      return Math.round(Math.min(baseSubtotalMurni, total));
     },
 
     grandTotal() {
-      // Jika sedang pakai diskon voucher global, potong dari nilai murni base price item
-      if (this.appliedDiscount) {
+      // Jika ada diskon yang dipasang, potong dari subtotal harga normal (promo produk di-override)
+      if (this.appliedDiscounts.length > 0) {
         const baseSubtotalMurni = this.items.reduce((total, item) => total + (Number(item.price) * item.qty), 0);
         return Math.max(0, baseSubtotalMurni - this.discountAmount);
       }
@@ -140,11 +178,35 @@ export const useCartStore = defineStore('cart', {
       this.tableInfo = info
       this.onlinePaymentAvailable = onlinePaymentAvailable
     },
-    applyDiscount(discountData) {
-      this.appliedDiscount = discountData
+    isDiscountApplied(discountData) {
+      return this.appliedDiscounts.some(d => String(d.id) === String(discountData.id))
     },
-    removeDiscount() {
-      this.appliedDiscount = null
+    applyDiscount(discountData) {
+      const scope = discountData.scope || 'global'
+      if (scope === 'global') {
+        // Global eksklusif: buang semua diskon lain, sisakan global ini saja.
+        this.appliedDiscounts = [discountData]
+        return
+      }
+      // Produk/kategori: boleh bertumpuk, tapi tidak boleh dibarengi diskon global.
+      this.appliedDiscounts = this.appliedDiscounts.filter(d => (d.scope || 'global') !== 'global')
+      if (!this.isDiscountApplied(discountData)) {
+        this.appliedDiscounts.push(discountData)
+      }
+    },
+    toggleDiscount(discountData) {
+      if (this.isDiscountApplied(discountData)) {
+        this.removeDiscount(discountData.id)
+      } else {
+        this.applyDiscount(discountData)
+      }
+    },
+    removeDiscount(discountId = null) {
+      if (discountId === null) {
+        this.appliedDiscounts = []
+      } else {
+        this.appliedDiscounts = this.appliedDiscounts.filter(d => String(d.id) !== String(discountId))
+      }
     },
     addItem(product) {
       const productId = Number(product.id || product.product_id);
@@ -197,7 +259,7 @@ export const useCartStore = defineStore('cart', {
     clearCart() {
       this.items = []
       this.customerName = ''
-      this.appliedDiscount = null 
+      this.appliedDiscounts = []
       this.cachedTaxes = null
       this.cachedDiscounts = null
       localStorage.removeItem('posqr_last_order_id')
