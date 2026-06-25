@@ -1,0 +1,17 @@
+.git
+.gitignore
+node_modules
+dist
+dist-ssr
+.DS_Store
+*.local
+.vscode
+.idea
+.codegraph
+coverage
+README.md
+AUDIT-FRONTEND.md
+Dockerfile
+.dockerignore
+.eslintcache
+# .env intentionally NOT ignored — vite needs VITE_* at build (no secrets; baked into public JS).
