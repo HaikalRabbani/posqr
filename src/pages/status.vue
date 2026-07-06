@@ -163,7 +163,7 @@ onUnmounted(() => {
       <div ref="receiptRef" class="status-card">
         <div class="card-header">
           <div class="brand-info">
-            <h3 class="brand-name">ETRES POS</h3>
+            <h3 class="brand-name">POS</h3>
             <p class="invoice-num">{{ order?.invoice_number || 'PROSES GENERATE' }}</p>
           </div>
           <span class="status-badge" :class="order?.status?.toLowerCase() || 'pending'">

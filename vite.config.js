@@ -17,6 +17,6 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
-    allowedHosts: ['pos.etres.my.id']
+    allowedHosts: ['http://103.197.190.23:9010/']
   }
 })

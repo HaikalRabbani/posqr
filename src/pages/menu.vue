@@ -80,11 +80,36 @@ const handleAddToCart = (product) => {
     toastMessage.value = `masuk keranjang!`
   }
   showToast.value = true
-  
+
   if (toastTimer) clearTimeout(toastTimer)
   toastTimer = setTimeout(() => {
     showToast.value = false
   }, 2000)
+}
+
+// --- LOGIC STEPPER KUANTITAS DI MENU ---
+// Ambil jumlah produk yang sudah ada di keranjang (0 kalau belum ada)
+const getQty = (product) => {
+  const item = cartStore.items.find(i => Number(i.product_id) === Number(product.id))
+  return item ? item.qty : 0
+}
+
+// Tambah kuantitas langsung dari menu. Beri toast hanya kalau stok tidak cukup.
+const incrementItem = (product) => {
+  const result = cartStore.addItem(product)
+  if (result && result.success === false) {
+    toastMessage.value = `Stok "${product.name}" tidak mencukup!`
+    showToast.value = true
+    if (toastTimer) clearTimeout(toastTimer)
+    toastTimer = setTimeout(() => {
+      showToast.value = false
+    }, 2000)
+  }
+}
+
+// Kurangi kuantitas. Kalau tinggal 1, item otomatis hilang dari keranjang.
+const decrementItem = (product) => {
+  cartStore.removeItem(product.id)
 }
 
 const categories = computed(() => {
@@ -120,7 +145,7 @@ const formatRupiah = (angka) => {
   return new Intl.NumberFormat('id-ID').format(angka)
 }
 
-const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://api.etres.my.id/api/v1'
+const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://103.197.190.23:9010/api/v1'
 const storageUrl = baseUrl.replace('/api/v1', '/storage')
 
 const getImageUrl = (imagePath) => {
@@ -357,13 +382,20 @@ onUnmounted(() => {
                   </template>
                   <span v-else class="text-soldout-price">Habis</span>
                   
-                  <button 
-                    v-if="product.stock > 0"
-                    class="btn-add-circle rec-btn" 
-                    @click.stop="handleAddToCart(product)"
-                  >
-                    <span>+</span>
-                  </button>
+                  <template v-if="product.stock > 0">
+                    <div v-if="getQty(product) > 0" class="qty-stepper rec-stepper" @click.stop>
+                      <button class="qty-btn" @click.stop="decrementItem(product)">−</button>
+                      <span class="qty-value">{{ getQty(product) }}</span>
+                      <button class="qty-btn" @click.stop="incrementItem(product)">+</button>
+                    </div>
+                    <button
+                      v-else
+                      class="btn-add-circle rec-btn"
+                      @click.stop="incrementItem(product)"
+                    >
+                      <span>+</span>
+                    </button>
+                  </template>
                 </div>
               </div>
             </div>
@@ -419,13 +451,20 @@ onUnmounted(() => {
                     </template>
                     <span v-else class="text-soldout-price">Habis Terjual</span>
 
-                    <button 
-                      v-if="product.stock > 0"
-                      class="btn-add-circle" 
-                      @click.stop="handleAddToCart(product)"
-                    >
-                      <span>+</span>
-                    </button>
+                    <template v-if="product.stock > 0">
+                      <div v-if="getQty(product) > 0" class="qty-stepper" @click.stop>
+                        <button class="qty-btn" @click.stop="decrementItem(product)">−</button>
+                        <span class="qty-value">{{ getQty(product) }}</span>
+                        <button class="qty-btn" @click.stop="incrementItem(product)">+</button>
+                      </div>
+                      <button
+                        v-else
+                        class="btn-add-circle"
+                        @click.stop="incrementItem(product)"
+                      >
+                        <span>+</span>
+                      </button>
+                    </template>
                   </div>
                   <div v-if="product.stock > 0 && product.is_promo && product.min_purchase && Number(product.min_purchase) > 0" class="promo-requirement-text">
                     *Min. belanja Rp {{ formatRupiah(product.min_purchase) }} dapat diskon
@@ -606,6 +645,17 @@ onUnmounted(() => {
 .text-soldout-price { font-weight: 600; color: #EF4444; font-size: 12px; }
 .btn-add-circle { width: 28px; height: 28px; background: #2E7DD6; color: #FFFFFF; border: none; border-radius: 50%; font-size: 18px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.1s ease; padding: 0;}
 .btn-add-circle:active { transform: scale(0.9); }
+
+/* Stepper Kuantitas (muncul setelah produk masuk keranjang) */
+.qty-stepper { display: inline-flex; align-items: center; gap: 4px; background: #EBF3FB; border: 1px solid #D4E4F4; border-radius: 999px; padding: 2px; }
+.qty-btn { width: 26px; height: 26px; background: #2E7DD6; color: #FFFFFF; border: none; border-radius: 50%; font-size: 16px; font-weight: 700; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; transition: transform 0.1s ease; }
+.qty-btn:active { transform: scale(0.9); }
+.qty-value { min-width: 22px; text-align: center; font-size: 14px; font-weight: 700; color: #1A2332; font-family: 'JetBrains Mono', monospace; }
+
+/* Versi lebih kecil untuk grid rekomendasi */
+.rec-stepper { padding: 1px; gap: 3px; }
+.rec-stepper .qty-btn { width: 22px; height: 22px; font-size: 14px; }
+.rec-stepper .qty-value { min-width: 18px; font-size: 12px; }
 
 .promo-requirement-text { font-size: 10px; color: #5A7A9A; font-style: italic; font-weight: 500; margin-top: 4px; }
 
