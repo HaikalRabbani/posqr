@@ -145,7 +145,7 @@ const formatRupiah = (angka) => {
   return new Intl.NumberFormat('id-ID').format(angka)
 }
 
-const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://103.197.190.23:9010/api/v1'
+const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://api.etres.my.id/api/v1'
 const storageUrl = baseUrl.replace('/api/v1', '/storage')
 
 const getImageUrl = (imagePath) => {
